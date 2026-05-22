@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  QA_ANALYST
+  TEAM_LEAD
+  AGENT
+}
+
+enum EvalStatus {
+  DRAFT
+  SUBMITTED
+  DISPUTED
+  RESOLVED
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String       @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role         @default(AGENT)
+  teamId        String?
+  team          Team?        @relation(fields: [teamId], references: [id])
+  accounts      Account[]
+  sessions      Session[]
+  evaluationsBy Evaluation[] @relation("EvaluatorRelation")
+  evaluationsOf Evaluation[] @relation("AgentRelation")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Team {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  members     User[]
+  scorecards  Scorecard[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Scorecard {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  teamId      String?
+  team        Team?        @relation(fields: [teamId], references: [id])
+  sections    Section[]
+  evaluations Evaluation[]
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Section {
+  id          String      @id @default(cuid())
+  name        String
+  weight      Float       @default(1.0)
+  scorecardId String
+  scorecard   Scorecard   @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  criteria    Criterion[]
+  order       Int         @default(0)
+}
+
+model Criterion {
+  id          String   @id @default(cuid())
+  question    String
+  description String?
+  weight      Float    @default(1.0)
+  isCritical  Boolean  @default(false)
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+  order       Int      @default(0)
+}
+
+model Evaluation {
+  id           String     @id @default(cuid())
+  scorecardId  String
+  scorecard    Scorecard  @relation(fields: [scorecardId], references: [id])
+  evaluatorId  String
+  evaluator    User       @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
+  agentId      String
+  agent        User       @relation("AgentRelation", fields: [agentId], references: [id])
+  callDate     DateTime
+  callId       String?
+  recordingUrl String?
+  transcript   String?
+  totalScore   Float?
+  passed       Boolean?
+  notes        String?
+  answers      Answer[]
+  status       EvalStatus @default(DRAFT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Answer {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criterionId  String
+  criterion    Criterion  @relation(fields: [criterionId], references: [id])
+  score        Int
+  note         String?
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
