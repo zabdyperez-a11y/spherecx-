@@ -38,6 +38,10 @@ export default function AdminPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
+  const [showInviteUser, setShowInviteUser] = useState(false)
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'QA_ANALYST', password: '' })
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState('')
 
   const load = () => {
     fetch('/api/admin/clients').then(r => r.json())
@@ -68,6 +72,34 @@ export default function AdminPage() {
     if (msg) { setActionMsg(msg); setTimeout(() => setActionMsg(''), 3000) }
     const updated = orgs.find(o => o.id === id)
     if (selected?.id === id && updated) setSelected({ ...updated, ...data })
+  }
+
+  const inviteUser = async () => {
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) { setInviteError('Name and email are required.'); return }
+    if (!selected) return
+    setInviting(true); setInviteError('')
+    try {
+      const res = await fetch('/api/admin/organizations/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inviteForm, orgId: selected.id }),
+      })
+      if (res.ok) {
+        setInviteForm({ name: '', email: '', role: 'QA_ANALYST', password: '' })
+        setShowInviteUser(false)
+        setActionMsg(`${inviteForm.name} added successfully`)
+        load()
+      } else {
+        const d = await res.json(); setInviteError(d.error || 'Failed to add user.')
+      }
+    } catch { setInviteError('Failed to add user.') } finally { setInviting(false) }
+  }
+
+  const removeUser = async (userId: string) => {
+    await fetch('/api/settings/users', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: userId }),
+    })
+    setActionMsg('User removed'); load()
   }
 
   const deleteClient = async (id: string) => {
@@ -253,7 +285,7 @@ export default function AdminPage() {
                     <p className="text-sm text-slate-400">{selected.contactName || '—'}</p>
                     <p className="text-xs text-slate-300">{selected.contactEmail}</p>
                   </div>
-                  <button onClick={() => { setSelected(null); setConfirmDelete(false); setShowTempPass(false) }}
+                  <button onClick={() => { setSelected(null); setConfirmDelete(false); setShowTempPass(false); setShowInviteUser(false) }}
                     className="text-slate-300 hover:text-slate-500 text-lg">×</button>
                 </div>
 
@@ -353,19 +385,56 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Users ({selected.users.length}/{selected.maxUsers})</p>
-                  <button className="text-xs text-blue-600 font-medium">+ Invite</button>
+                  <button onClick={() => { setShowInviteUser(!showInviteUser); setInviteError('') }}
+                    className="text-xs text-blue-600 font-medium hover:text-blue-700">
+                    {showInviteUser ? 'Cancel' : '+ Invite'}
+                  </button>
                 </div>
+
+                {showInviteUser && (
+                  <div className="bg-slate-50 rounded-lg p-4 mb-3 border border-slate-100">
+                    <div className="space-y-2">
+                      <input value={inviteForm.name} onChange={e => setInviteForm({ ...inviteForm, name: e.target.value })}
+                        placeholder="Full name *"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                      <input type="email" value={inviteForm.email} onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })}
+                        placeholder="Email address *"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                      <input value={inviteForm.password} onChange={e => setInviteForm({ ...inviteForm, password: e.target.value })}
+                        placeholder="Password (leave blank to auto-generate)"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                      <select value={inviteForm.role} onChange={e => setInviteForm({ ...inviteForm, role: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                        <option value="ADMIN">Admin</option>
+                        <option value="MANAGER">Manager</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="TEAM_LEAD">Team Lead</option>
+                        <option value="QA_ANALYST">QA Analyst</option>
+                        <option value="AGENT">Agent</option>
+                      </select>
+                    </div>
+                    {inviteError && <p className="text-xs text-red-500 mt-2">{inviteError}</p>}
+                    <button onClick={inviteUser} disabled={inviting}
+                      className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 rounded-lg disabled:opacity-50 transition-colors">
+                      {inviting ? 'Adding...' : 'Add User'}
+                    </button>
+                  </div>
+                )}
+
                 {selected.users.length === 0 ? (
-                  <p className="text-xs text-slate-400">No users yet.</p>
+                  <p className="text-xs text-slate-400">No users yet. Invite your first user above.</p>
                 ) : (
                   <div className="space-y-2">
                     {selected.users.map(u => (
-                      <div key={u.id} className="flex items-center justify-between py-1">
+                      <div key={u.id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
                         <div>
                           <p className="text-xs font-medium text-slate-700">{u.name || 'Unnamed'}</p>
                           <p className="text-xs text-slate-400">{u.email}</p>
                         </div>
-                        <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">{u.role}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">{u.role}</span>
+                          <button onClick={() => removeUser(u.id)} className="text-xs text-red-400 hover:text-red-600">✕</button>
+                        </div>
                       </div>
                     ))}
                   </div>
