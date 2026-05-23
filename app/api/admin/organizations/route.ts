@@ -7,8 +7,8 @@ export async function GET() {
   try {
     const orgs = await prisma.organization.findMany({
       include: {
-        users: { select: { id: true, name: true, email: true, role: true } },
-        _count: { select: { evaluations: true, scorecards: true } }
+        users: true,
+        _count: { select: { evaluations: true, scorecards: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -20,17 +20,24 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { name, slug, plan, billingEmail, maxAgents, maxEvals, notes } = await req.json()
+    const { name, slug, plan, contactName, contactEmail, notes } = await req.json()
+    const limits: Record<string, { maxUsers: number; maxEvals: number }> = {
+      FREE: { maxUsers: 3, maxEvals: 50 },
+      PRO: { maxUsers: 15, maxEvals: 500 },
+      ENTERPRISE: { maxUsers: 999, maxEvals: 99999 },
+    }
     const org = await prisma.organization.create({
       data: {
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
         plan: plan || 'FREE',
-        billingEmail: billingEmail || null,
-        maxAgents: maxAgents || (plan === 'PRO' ? 25 : plan === 'ENTERPRISE' ? 999 : 5),
-        maxEvals: maxEvals || (plan === 'PRO' ? 500 : plan === 'ENTERPRISE' ? 99999 : 50),
-        notes: notes || null,
         status: 'TRIAL',
+        contactName: contactName || null,
+        contactEmail: contactEmail || null,
+        notes: notes || null,
+        maxUsers: limits[plan]?.maxUsers ?? 3,
+        maxEvals: limits[plan]?.maxEvals ?? 50,
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       },
     })
     return NextResponse.json(org, { status: 201 })
