@@ -62,7 +62,7 @@ export default function Dashboard() {
 
         {accessDenied && (
           <div className="mb-5 px-4 py-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2">
-            <span>🚫</span> You don't have permission to access that page.
+            <span>🚫</span> You don&apos;t have permission to access that page.
           </div>
         )}
         <div className="grid grid-cols-4 gap-4 mb-6">
