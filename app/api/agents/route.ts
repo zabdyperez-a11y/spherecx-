@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
@@ -17,8 +18,8 @@ export async function GET() {
       orderBy: { name: 'asc' },
     })
     return NextResponse.json(agents)
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
 
@@ -28,6 +29,18 @@ export async function POST(req: Request) {
     const agent = await prisma.user.create({
       data: { name, email, role: 'AGENT', teamId: teamId || null },
     })
+
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    await logAudit({
+      userEmail: 'admin@spherecx.com',
+      action: 'CREATE',
+      entity: 'agent',
+      entityId: agent.id,
+      entityName: agent.name || email,
+      details: { email },
+      ipAddress: ip,
+    })
+
     return NextResponse.json(agent, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

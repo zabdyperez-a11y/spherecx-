@@ -2,21 +2,20 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
     const evaluations = await prisma.evaluation.findMany({
       include: {
-        scorecard: true,
-        agent: true,
-        evaluator: true,
+        scorecard: true, agent: true, evaluator: true,
         answers: { include: { criterion: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(evaluations)
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch evaluations' }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
 
@@ -27,15 +26,12 @@ export async function POST(req: Request) {
 
     const evaluation = await prisma.evaluation.create({
       data: {
-        scorecardId,
-        agentId,
-        evaluatorId,
+        scorecardId, agentId, evaluatorId,
         callDate: new Date(callDate),
         callId: callId || null,
         recordingUrl: recordingUrl || null,
         notes: notes || null,
-        totalScore,
-        passed,
+        totalScore, passed,
         status: status || 'SUBMITTED',
         answers: {
           create: (answers || []).map((a: any) => ({
@@ -47,6 +43,18 @@ export async function POST(req: Request) {
       },
       include: { scorecard: true, agent: true, answers: true },
     })
+
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    await logAudit({
+      userEmail: 'admin@spherecx.com',
+      action: status === 'DRAFT' ? 'DRAFT' : 'SUBMIT',
+      entity: 'evaluation',
+      entityId: evaluation.id,
+      entityName: evaluation.agent?.name || callId || evaluation.id,
+      details: { score: totalScore, passed, callId, scorecardId },
+      ipAddress: ip,
+    })
+
     return NextResponse.json(evaluation, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

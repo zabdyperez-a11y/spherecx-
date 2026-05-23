@@ -188,3 +188,24 @@ model VerificationToken {
   expires    DateTime
   @@unique([identifier, token])
 }
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String?
+  userId     String?
+  userEmail  String
+  userName   String?
+  userRole   String?
+  action     String
+  entity     String
+  entityId   String?
+  entityName String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
