@@ -19,6 +19,10 @@ const SS = { ACTIVE: 'bg-emerald-50 text-emerald-600', TRIAL: 'bg-amber-50 text-
 const PP = { FREE: '$0', PRO: '$299/mo', ENTERPRISE: '$999/mo' }
 const PL = { FREE: { users: 3, evals: 50 }, PRO: { users: 15, evals: 500 }, ENTERPRISE: { users: 999, evals: 99999 } }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(() => {})
+}
+
 export default function AdminPage() {
   const [orgs, setOrgs] = useState<Org[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +32,12 @@ export default function AdminPage() {
   const [form, setForm] = useState({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '' })
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
+  const [copied, setCopied] = useState<string | null>(null)
+  const [showTempPass, setShowTempPass] = useState(false)
+  const [tempPass, setTempPass] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [actionMsg, setActionMsg] = useState('')
 
   const load = () => {
     fetch('/api/admin/clients').then(r => r.json())
@@ -50,27 +60,73 @@ export default function AdminPage() {
     } catch { setAddError('Failed.') } finally { setAdding(false) }
   }
 
-  const patch = async (id: string, data: any) => {
+  const patch = async (id: string, data: any, msg?: string) => {
+    setActionLoading(msg || null)
     await fetch(`/api/admin/clients/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    load(); if (selected?.id === id) setSelected(null)
+    load()
+    setActionLoading(null)
+    if (msg) { setActionMsg(msg); setTimeout(() => setActionMsg(''), 3000) }
+    const updated = orgs.find(o => o.id === id)
+    if (selected?.id === id && updated) setSelected({ ...updated, ...data })
+  }
+
+  const deleteClient = async (id: string) => {
+    setActionLoading('Deleting...')
+    await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' })
+    setSelected(null); setConfirmDelete(false); load()
+    setActionLoading(null)
+  }
+
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#'
+    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  }
+
+  const handleCopy = (text: string, key: string) => {
+    copyToClipboard(text)
+    setCopied(key)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const getSetupLink = (org: Org) => {
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'https://spherecx.vercel.app'
+    return `${base}/login?org=${org.slug}`
   }
 
   const filtered = orgs.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) || (o.contactEmail || '').includes(search.toLowerCase()))
   const mrr = orgs.filter(o => o.status !== 'CANCELLED' && o.status !== 'SUSPENDED').reduce((s, o) => s + (o.plan === 'PRO' ? 299 : o.plan === 'ENTERPRISE' ? 999 : 0), 0)
 
+  const trialDaysLeft = (org: Org) => {
+    if (!org.trialEndsAt) return null
+    const diff = new Date(org.trialEndsAt).getTime() - Date.now()
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <main className="flex-1 px-8 py-7">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <span className="text-xs bg-indigo-100 text-indigo-600 font-semibold px-2 py-0.5 rounded-full">SUPER ADMIN</span>
             <h1 className="text-xl font-semibold text-slate-900 mt-1">Client Billing</h1>
             <p className="text-sm text-slate-400 mt-0.5">Manage all SphereCX clients, plans and access</p>
           </div>
-          <button onClick={() => setShowAdd(!showAdd)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg">+ Add Client</button>
+          <button onClick={() => setShowAdd(!showAdd)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
+            + Add Client
+          </button>
         </div>
 
+        {/* Action message */}
+        {actionMsg && (
+          <div className="mb-4 px-4 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-lg">
+            ✓ {actionMsg}
+          </div>
+        )}
+
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           {[
             { label: 'Total Clients', value: orgs.length },
@@ -85,6 +141,7 @@ export default function AdminPage() {
           ))}
         </div>
 
+        {/* Add Client Form */}
         {showAdd && (
           <div className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm mb-6">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">New Client</h2>
@@ -96,7 +153,8 @@ export default function AdminPage() {
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">{f.label}</label>
-                  <input type={f.type} value={(form as any)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} placeholder={f.placeholder}
+                  <input type={f.type} value={(form as any)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                    placeholder={f.placeholder}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
               ))}
@@ -111,13 +169,15 @@ export default function AdminPage() {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Internal Notes</label>
-                <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="e.g. Referred by X, closing date Y..."
+                <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                  placeholder="e.g. Referred by X, closing date Y..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
               </div>
             </div>
             {addError && <p className="text-xs text-red-500 mt-3">{addError}</p>}
             <div className="flex gap-3 mt-4">
-              <button onClick={addClient} disabled={adding} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-6 py-2 rounded-lg disabled:opacity-50">
+              <button onClick={addClient} disabled={adding}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-6 py-2 rounded-lg disabled:opacity-50">
                 {adding ? 'Adding...' : 'Add Client'}
               </button>
               <button onClick={() => setShowAdd(false)} className="text-slate-500 text-sm hover:text-slate-700">Cancel</button>
@@ -131,6 +191,8 @@ export default function AdminPage() {
         </div>
 
         <div className={`grid gap-6 ${selected ? 'grid-cols-3' : 'grid-cols-1'}`}>
+
+          {/* Table */}
           <div className={selected ? 'col-span-2' : 'col-span-1'}>
             <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
               {loading ? (
@@ -144,36 +206,46 @@ export default function AdminPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      {['Company', 'Plan', 'Status', 'Users', 'Evals', 'MRR', 'Trial Ends', ''].map(h => (
+                      {['Company', 'Plan', 'Status', 'Users', 'Trial', 'MRR', ''].map(h => (
                         <th key={h} className="text-left text-xs text-slate-400 font-medium px-5 py-3">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((org, i) => (
-                      <tr key={org.id} onClick={() => setSelected(selected?.id === org.id ? null : org)}
-                        className={`cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-slate-50' : ''} ${selected?.id === org.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                        <td className="px-5 py-4">
-                          <p className="text-sm font-medium text-slate-900">{org.name}</p>
-                          <p className="text-xs text-slate-400">{org.contactEmail || '—'}</p>
-                        </td>
-                        <td className="px-5 py-4"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PS[org.plan]}`}>{org.plan}</span></td>
-                        <td className="px-5 py-4"><span className={`text-xs font-medium px-2.5 py-1 rounded-full ${SS[org.status]}`}>{org.status}</span></td>
-                        <td className="px-5 py-4 text-sm text-slate-600">{org.users.length}<span className="text-slate-300">/{org.maxUsers}</span></td>
-                        <td className="px-5 py-4 text-sm text-slate-600">{org._count.evaluations}<span className="text-slate-300">/{org.maxEvals}</span></td>
-                        <td className="px-5 py-4 text-sm font-medium text-slate-700">{PP[org.plan]}</td>
-                        <td className="px-5 py-4 text-sm text-slate-400">{org.trialEndsAt ? new Date(org.trialEndsAt).toLocaleDateString() : '—'}</td>
-                        <td className="px-5 py-4 text-xs text-blue-600 font-medium">Manage →</td>
-                      </tr>
-                    ))}
+                    {filtered.map((org, i) => {
+                      const days = trialDaysLeft(org)
+                      return (
+                        <tr key={org.id} onClick={() => setSelected(selected?.id === org.id ? null : org)}
+                          className={`cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-slate-50' : ''} ${selected?.id === org.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-medium text-slate-900">{org.name}</p>
+                            <p className="text-xs text-slate-400">{org.contactEmail || '—'}</p>
+                          </td>
+                          <td className="px-5 py-4"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PS[org.plan]}`}>{org.plan}</span></td>
+                          <td className="px-5 py-4"><span className={`text-xs font-medium px-2.5 py-1 rounded-full ${SS[org.status]}`}>{org.status}</span></td>
+                          <td className="px-5 py-4 text-sm text-slate-600">{org.users.length}<span className="text-slate-300">/{org.maxUsers}</span></td>
+                          <td className="px-5 py-4">
+                            {days === null ? <span className="text-xs text-slate-300">—</span> :
+                              days === 0 ? <span className="text-xs font-medium text-red-500">Expired</span> :
+                              <span className={`text-xs font-medium ${days <= 3 ? 'text-red-500' : days <= 7 ? 'text-amber-500' : 'text-slate-500'}`}>{days}d left</span>
+                            }
+                          </td>
+                          <td className="px-5 py-4 text-sm font-medium text-slate-700">{PP[org.plan]}</td>
+                          <td className="px-5 py-4 text-xs text-blue-600 font-medium">Manage →</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               )}
             </div>
           </div>
 
+          {/* Client Detail Panel */}
           {selected && (
             <div className="space-y-4">
+
+              {/* Header card */}
               <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -181,15 +253,16 @@ export default function AdminPage() {
                     <p className="text-sm text-slate-400">{selected.contactName || '—'}</p>
                     <p className="text-xs text-slate-300">{selected.contactEmail}</p>
                   </div>
-                  <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-500 text-lg">×</button>
+                  <button onClick={() => { setSelected(null); setConfirmDelete(false); setShowTempPass(false) }}
+                    className="text-slate-300 hover:text-slate-500 text-lg">×</button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   {[
                     { label: 'Plan', value: selected.plan, sub: PP[selected.plan] },
-                    { label: 'Status', value: selected.status, sub: null },
-                    { label: 'Users', value: `${selected.users.length}/${selected.maxUsers}`, sub: null },
-                    { label: 'Evals Used', value: `${selected._count.evaluations}/${selected.maxEvals}`, sub: null },
+                    { label: 'Status', value: selected.status },
+                    { label: 'Users', value: `${selected.users.length}/${selected.maxUsers}` },
+                    { label: 'Trial left', value: trialDaysLeft(selected) !== null ? `${trialDaysLeft(selected)}d` : '—' },
                   ].map(s => (
                     <div key={s.label} className="bg-slate-50 rounded-lg px-3 py-2.5">
                       <p className="text-xs text-slate-400">{s.label}</p>
@@ -199,11 +272,12 @@ export default function AdminPage() {
                   ))}
                 </div>
 
+                {/* Change Plan */}
                 <div className="mb-4">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Change Plan</p>
+                  <p className="text-xs font-medium text-slate-500 mb-2">Plan</p>
                   <div className="flex gap-1.5">
                     {(['FREE', 'PRO', 'ENTERPRISE'] as const).map(p => (
-                      <button key={p} onClick={() => patch(selected.id, { plan: p })}
+                      <button key={p} onClick={() => patch(selected.id, { plan: p }, `Plan changed to ${p}`)}
                         className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${selected.plan === p ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                         {p}
                       </button>
@@ -211,11 +285,12 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {/* Change Status */}
                 <div className="mb-4">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Change Status</p>
+                  <p className="text-xs font-medium text-slate-500 mb-2">Status</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {(['ACTIVE', 'TRIAL', 'SUSPENDED', 'CANCELLED'] as const).map(s => (
-                      <button key={s} onClick={() => patch(selected.id, { status: s })}
+                      <button key={s} onClick={() => patch(selected.id, { status: s }, `Status changed to ${s}`)}
                         className={`text-xs py-1 px-2.5 rounded-lg font-medium transition-colors ${selected.status === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                         {s}
                       </button>
@@ -224,13 +299,57 @@ export default function AdminPage() {
                 </div>
 
                 {selected.notes && (
-                  <div className="bg-amber-50 rounded-lg px-3 py-2 border border-amber-100 mb-4">
-                    <p className="text-xs text-amber-700 font-medium">Note</p>
-                    <p className="text-xs text-amber-600">{selected.notes}</p>
+                  <div className="bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+                    <p className="text-xs text-amber-700">{selected.notes}</p>
                   </div>
                 )}
               </div>
 
+              {/* Setup & Access */}
+              <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Setup & Access</p>
+
+                {/* Setup link */}
+                <div className="mb-3">
+                  <p className="text-xs text-slate-500 mb-1.5">Setup / Login Link</p>
+                  <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+                    <p className="text-xs text-slate-500 font-mono flex-1 truncate">{getSetupLink(selected)}</p>
+                    <button onClick={() => handleCopy(getSetupLink(selected), 'link')}
+                      className={`text-xs font-medium flex-shrink-0 ${copied === 'link' ? 'text-emerald-600' : 'text-blue-600 hover:text-blue-700'}`}>
+                      {copied === 'link' ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Temp password */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs text-slate-500">Temporary Password</p>
+                    <button onClick={() => { setTempPass(generateTempPassword()); setShowTempPass(true) }}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium">Generate</button>
+                  </div>
+                  {showTempPass && tempPass && (
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+                      <p className="text-xs font-mono text-slate-800 flex-1">{tempPass}</p>
+                      <button onClick={() => handleCopy(tempPass, 'pass')}
+                        className={`text-xs font-medium flex-shrink-0 ${copied === 'pass' ? 'text-emerald-600' : 'text-blue-600 hover:text-blue-700'}`}>
+                        {copied === 'pass' ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  )}
+                  {showTempPass && tempPass && (
+                    <p className="text-xs text-slate-400 mt-1">Share this with the client. They should change it on first login.</p>
+                  )}
+                </div>
+
+                {/* Force reset */}
+                <button onClick={() => { const p = generateTempPassword(); setTempPass(p); setShowTempPass(true); patch(selected.id, { forcePasswordReset: true }, 'Password reset flagged') }}
+                  className="w-full text-xs text-amber-600 border border-amber-200 bg-amber-50 py-2 rounded-lg hover:bg-amber-100 transition-colors font-medium">
+                  ↺ Force Password Reset on Next Login
+                </button>
+              </div>
+
+              {/* Users */}
               <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Users ({selected.users.length}/{selected.maxUsers})</p>
@@ -253,23 +372,36 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Plan Features</p>
-                <div className="space-y-2 text-sm">
-                  {[
-                    ['Users', PL[selected.plan].users === 999 ? 'Unlimited' : PL[selected.plan].users],
-                    ['Evals/month', PL[selected.plan].evals === 99999 ? 'Unlimited' : PL[selected.plan].evals],
-                    ['Scorecards', selected.plan === 'FREE' ? 3 : 'Unlimited'],
-                    ['AI Auto-Score', selected.plan !== 'FREE' ? '✓' : '✗'],
-                    ['Coaching Reports', selected.plan !== 'FREE' ? '✓' : '✗'],
-                    ['Priority Support', selected.plan === 'ENTERPRISE' ? '✓' : '✗'],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-slate-500">{label}</span>
-                      <span className={`font-medium ${value === '✓' ? 'text-emerald-600' : value === '✗' ? 'text-slate-300' : 'text-slate-800'}`}>{value}</span>
+              {/* Danger Zone */}
+              <div className="bg-white rounded-xl border border-red-100 p-5 shadow-sm">
+                <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-3">Danger Zone</p>
+
+                {!confirmDelete ? (
+                  <div className="space-y-2">
+                    <button onClick={() => patch(selected.id, { status: 'SUSPENDED' }, 'Client suspended')}
+                      className="w-full text-xs text-red-400 border border-red-200 py-2 rounded-lg hover:bg-red-50 transition-colors font-medium">
+                      🚫 Suspend Client
+                    </button>
+                    <button onClick={() => setConfirmDelete(true)}
+                      className="w-full text-xs text-red-500 border border-red-300 bg-red-50 py-2 rounded-lg hover:bg-red-100 transition-colors font-medium">
+                      🗑 Permanently Delete Client
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">Are you sure?</p>
+                    <p className="text-xs text-red-500 mb-3">This will permanently delete <strong>{selected.name}</strong> and all their data. This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => deleteClient(selected.id)} disabled={actionLoading !== null}
+                        className="flex-1 text-xs bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50">
+                        {actionLoading === 'Deleting...' ? 'Deleting...' : 'Yes, Delete Forever'}
+                      </button>
+                      <button onClick={() => setConfirmDelete(false)} className="flex-1 text-xs bg-white border border-slate-200 text-slate-600 py-2 rounded-lg font-medium hover:bg-slate-50">
+                        Cancel
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
