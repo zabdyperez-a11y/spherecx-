@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 const NAV = [
@@ -14,6 +14,13 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+  }
+
   return (
     <aside className="w-56 min-h-screen flex flex-col" style={{ background: '#0f1629', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -36,7 +43,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
             style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>Z</div>
           <div className="flex-1 min-w-0">
@@ -44,6 +51,11 @@ export default function Sidebar() {
             <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>QA Analyst</p>
           </div>
         </div>
+        <button onClick={handleLogout}
+          className="w-full text-xs py-1.5 rounded-lg transition-all text-left px-2"
+          style={{ color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.04)' }}>
+          Sign out →
+        </button>
       </div>
     </aside>
   )
