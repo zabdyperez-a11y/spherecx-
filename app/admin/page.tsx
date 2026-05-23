@@ -28,6 +28,11 @@ export default function AdminPage() {
   const [form, setForm] = useState({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '' })
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
+  const [tempPass, setTempPass] = useState('')
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [setupLink, setSetupLink] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   const load = () => {
     fetch('/api/admin/clients').then(r => r.json())
@@ -36,6 +41,14 @@ export default function AdminPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  const selectOrg = (org: Org | null) => {
+    setSelected(org)
+    setTempPass('')
+    setActionMsg(null)
+    setSetupLink(null)
+    setDeleteConfirm(false)
+  }
 
   const addClient = async () => {
     if (!form.name.trim()) { setAddError('Name is required.'); return }
@@ -50,9 +63,39 @@ export default function AdminPage() {
     } catch { setAddError('Failed.') } finally { setAdding(false) }
   }
 
-  const patch = async (id: string, data: any) => {
+  const patch = async (id: string, data: object) => {
     await fetch(`/api/admin/clients/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    load(); if (selected?.id === id) setSelected(null)
+    load(); if (selected?.id === id) selectOrg(null)
+  }
+
+  const runAction = async (action: string, id: string) => {
+    setActionLoading(action); setActionMsg(null); setSetupLink(null)
+    try {
+      if (action === 'delete') {
+        const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' })
+        if (res.ok) { selectOrg(null); load() }
+        else { const d = await res.json(); setActionMsg({ type: 'err', text: d.error || 'Delete failed.' }) }
+      } else if (action === 'force-reset') {
+        const res = await fetch(`/api/admin/clients/${id}/force-reset`, { method: 'POST' })
+        if (res.ok) setActionMsg({ type: 'ok', text: 'Password reset email sent to all admin users.' })
+        else { const d = await res.json(); setActionMsg({ type: 'err', text: d.error || 'Failed.' }) }
+      } else if (action === 'temp-password') {
+        if (!tempPass.trim()) { setActionMsg({ type: 'err', text: 'Enter a temporary password.' }); return }
+        const res = await fetch(`/api/admin/clients/${id}/temp-password`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: tempPass }),
+        })
+        if (res.ok) { setActionMsg({ type: 'ok', text: 'Temporary password set. User must reset on next login.' }); setTempPass('') }
+        else { const d = await res.json(); setActionMsg({ type: 'err', text: d.error || 'Failed.' }) }
+      } else if (action === 'setup-link') {
+        const res = await fetch(`/api/admin/clients/${id}/setup-link`, { method: 'POST' })
+        if (res.ok) { const d = await res.json(); setSetupLink(d.link) }
+        else { const d = await res.json(); setActionMsg({ type: 'err', text: d.error || 'Failed.' }) }
+      } else if (action === 'suspend') {
+        await patch(id, { status: 'SUSPENDED' })
+      }
+    } catch { setActionMsg({ type: 'err', text: 'Request failed.' }) }
+    finally { setActionLoading(null) }
   }
 
   const filtered = orgs.filter(o => o.name.toLowerCase().includes(search.toLowerCase()) || (o.contactEmail || '').includes(search.toLowerCase()))
@@ -96,7 +139,7 @@ export default function AdminPage() {
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">{f.label}</label>
-                  <input type={f.type} value={(form as any)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} placeholder={f.placeholder}
+                  <input type={f.type} value={(form as Record<string, string>)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} placeholder={f.placeholder}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
               ))}
@@ -151,7 +194,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {filtered.map((org, i) => (
-                      <tr key={org.id} onClick={() => setSelected(selected?.id === org.id ? null : org)}
+                      <tr key={org.id} onClick={() => selectOrg(selected?.id === org.id ? null : org)}
                         className={`cursor-pointer transition-colors ${i < filtered.length - 1 ? 'border-b border-slate-50' : ''} ${selected?.id === org.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
                         <td className="px-5 py-4">
                           <p className="text-sm font-medium text-slate-900">{org.name}</p>
@@ -181,7 +224,7 @@ export default function AdminPage() {
                     <p className="text-sm text-slate-400">{selected.contactName || '—'}</p>
                     <p className="text-xs text-slate-300">{selected.contactEmail}</p>
                   </div>
-                  <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-500 text-lg">×</button>
+                  <button onClick={() => selectOrg(null)} className="text-slate-300 hover:text-slate-500 text-lg">×</button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
@@ -269,6 +312,95 @@ export default function AdminPage() {
                       <span className={`font-medium ${value === '✓' ? 'text-emerald-600' : value === '✗' ? 'text-slate-300' : 'text-slate-800'}`}>{value}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Client Actions</p>
+
+                {actionMsg && (
+                  <div className={`rounded-lg px-3 py-2 mb-3 text-xs font-medium ${actionMsg.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                    {actionMsg.text}
+                  </div>
+                )}
+
+                {setupLink && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
+                    <p className="text-xs font-medium text-blue-700 mb-1">Setup Link (expires in 24h)</p>
+                    <p className="text-xs text-blue-600 break-all font-mono">{setupLink}</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(setupLink); setActionMsg({ type: 'ok', text: 'Link copied to clipboard.' }) }}
+                      className="text-xs text-blue-700 font-medium mt-1 hover:underline">
+                      Copy link
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-1.5">Set Temporary Password</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tempPass}
+                        onChange={e => setTempPass(e.target.value)}
+                        placeholder="Enter temp password..."
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-400"
+                      />
+                      <button
+                        onClick={() => runAction('temp-password', selected.id)}
+                        disabled={actionLoading === 'temp-password'}
+                        className="text-xs bg-slate-800 text-white px-3 py-2 rounded-lg font-medium hover:bg-slate-900 disabled:opacity-50 whitespace-nowrap">
+                        {actionLoading === 'temp-password' ? '...' : 'Set'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => runAction('force-reset', selected.id)}
+                    disabled={!!actionLoading}
+                    className="w-full text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-2 rounded-lg font-medium text-left disabled:opacity-50 transition-colors">
+                    {actionLoading === 'force-reset' ? 'Sending...' : 'Force Password Reset Email'}
+                  </button>
+
+                  <button
+                    onClick={() => runAction('setup-link', selected.id)}
+                    disabled={!!actionLoading}
+                    className="w-full text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-lg font-medium text-left disabled:opacity-50 transition-colors">
+                    {actionLoading === 'setup-link' ? 'Generating...' : 'Generate Setup Link'}
+                  </button>
+
+                  <button
+                    onClick={() => { if (selected.status !== 'SUSPENDED') runAction('suspend', selected.id) }}
+                    disabled={!!actionLoading || selected.status === 'SUSPENDED'}
+                    className="w-full text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 px-3 py-2 rounded-lg font-medium text-left disabled:opacity-50 transition-colors">
+                    {selected.status === 'SUSPENDED' ? 'Already Suspended' : actionLoading === 'suspend' ? 'Suspending...' : 'Suspend Client'}
+                  </button>
+
+                  {!deleteConfirm ? (
+                    <button
+                      onClick={() => setDeleteConfirm(true)}
+                      className="w-full text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-lg font-medium text-left transition-colors">
+                      Delete Client Permanently
+                    </button>
+                  ) : (
+                    <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
+                      <p className="text-xs text-red-700 font-medium mb-2">This will permanently delete {selected.name} and all its data. This cannot be undone.</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => runAction('delete', selected.id)}
+                          disabled={actionLoading === 'delete'}
+                          className="flex-1 text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50">
+                          {actionLoading === 'delete' ? 'Deleting...' : 'Confirm Delete'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(false)}
+                          className="flex-1 text-xs bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg font-medium">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
