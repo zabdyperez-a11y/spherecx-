@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -26,7 +28,9 @@ export async function POST(req: Request) {
     const data = await res.json()
     let text = data.choices?.[0]?.message?.content ?? ''
     // Strip any markdown wrapping just in case
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    text = text.replace(/```json
+?/g, '').replace(/```
+?/g, '').trim()
     return NextResponse.json({ text })
   } catch (error) {
     return NextResponse.json({ error: 'AI scoring failed' }, { status: 500 })

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -6,7 +8,8 @@ export async function POST(req: Request) {
 
     const criteriaResults = Object.entries(answers)
       .map(([criterion, result]) => `- ${criterion}: ${result}`)
-      .join('\n')
+      .join('
+')
 
     const prompt = `You are an expert call center coach. An evaluation was just completed for ${agent}.
 
@@ -16,7 +19,8 @@ OVERALL SCORE: ${score}% (${passed ? 'PASS' : 'FAIL'})
 CRITERIA RESULTS:
 ${criteriaResults}
 
-${transcript ? `CALL TRANSCRIPT EXCERPT:\n${transcript.slice(0, 1500)}` : ''}
+${transcript ? `CALL TRANSCRIPT EXCERPT:
+${transcript.slice(0, 1500)}` : ''}
 
 ${notes ? `EVALUATOR NOTES: ${notes}` : ''}
 
@@ -51,7 +55,9 @@ Generate a personalized coaching summary. Respond ONLY with a valid JSON object,
 
     const data = await res.json()
     let text = data.choices?.[0]?.message?.content ?? ''
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    text = text.replace(/```json
+?/g, '').replace(/```
+?/g, '').trim()
     const summary = JSON.parse(text)
     return NextResponse.json(summary)
   } catch (error) {
