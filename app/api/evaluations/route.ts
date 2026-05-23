@@ -2,11 +2,17 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getSession, getOrgFilter } from '@/lib/session'
 import { logAudit } from '@/lib/audit'
 
 export async function GET() {
+  const session = getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
+    const filter = getOrgFilter(session)
     const evaluations = await prisma.evaluation.findMany({
+      where: filter,
       include: {
         scorecard: true, agent: true, evaluator: true,
         answers: { include: { criterion: true } },
@@ -20,13 +26,18 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const session = getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const body = await req.json()
     const { scorecardId, agentId, evaluatorId, callDate, callId, recordingUrl, notes, answers, totalScore, passed, status } = body
 
     const evaluation = await prisma.evaluation.create({
       data: {
-        scorecardId, agentId, evaluatorId,
+        scorecardId, agentId,
+        evaluatorId: evaluatorId || session.id || agentId,
+        orgId: session.isSuperAdmin ? (body.orgId || null) : (session.orgId || null),
         callDate: new Date(callDate),
         callId: callId || null,
         recordingUrl: recordingUrl || null,
@@ -44,15 +55,12 @@ export async function POST(req: Request) {
       include: { scorecard: true, agent: true, answers: true },
     })
 
-    const ip = req.headers.get('x-forwarded-for') || 'unknown'
     await logAudit({
-      userEmail: 'admin@spherecx.com',
+      userEmail: session.email, userName: session.name, userRole: session.role,
+      userId: session.id, orgId: session.orgId,
       action: status === 'DRAFT' ? 'DRAFT' : 'SUBMIT',
-      entity: 'evaluation',
-      entityId: evaluation.id,
-      entityName: evaluation.agent?.name || callId || evaluation.id,
-      details: { score: totalScore, passed, callId, scorecardId },
-      ipAddress: ip,
+      entity: 'evaluation', entityId: evaluation.id,
+      details: { score: totalScore, passed, callId },
     })
 
     return NextResponse.json(evaluation, { status: 201 })

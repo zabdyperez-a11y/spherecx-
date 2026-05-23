@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 
 type Evaluation = {
@@ -17,6 +18,8 @@ type Evaluation = {
 }
 
 export default function Dashboard() {
+  const searchParams = useSearchParams()
+  const accessDenied = searchParams.get('denied') === '1'
   const [evals, setEvals] = useState<Evaluation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -57,7 +60,11 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Stats */}
+        {accessDenied && (
+          <div className="mb-5 px-4 py-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2">
+            <span>🚫</span> You don't have permission to access that page.
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-4 mb-6">
           {STATS.map(s => (
             <div key={s.label} className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm">

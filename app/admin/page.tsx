@@ -8,6 +8,7 @@ type Org = {
   plan: 'FREE' | 'PRO' | 'ENTERPRISE'
   status: 'ACTIVE' | 'TRIAL' | 'SUSPENDED' | 'CANCELLED'
   contactName: string | null; contactEmail: string | null
+  allowedDomain: string | null
   maxUsers: number; maxEvals: number
   trialEndsAt: string | null; createdAt: string; notes: string | null
   users: { id: string; name: string | null; email: string; role: string }[]
@@ -29,7 +30,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<Org | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '' })
+  const [form, setForm] = useState({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '', allowedDomain: '' })
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
@@ -59,7 +60,7 @@ export default function AdminPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      if (res.ok) { setForm({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '' }); setShowAdd(false); load() }
+      if (res.ok) { setForm({ name: '', contactName: '', contactEmail: '', plan: 'FREE', notes: '', allowedDomain: '' }); setShowAdd(false); load() }
       else { const d = await res.json(); setAddError(d.error || 'Failed.') }
     } catch { setAddError('Failed.') } finally { setAdding(false) }
   }
@@ -200,6 +201,18 @@ export default function AdminPage() {
                 </select>
               </div>
               <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Allowed Email Domain <span className="text-slate-300">(auto-detected from contact email)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">@</span>
+                  <input value={form.allowedDomain} onChange={e => setForm({ ...form, allowedDomain: e.target.value })}
+                    placeholder="company.com — leave blank to auto-detect"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Only emails from this domain can be added as users for this client.</p>
+              </div>
+              <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Internal Notes</label>
                 <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                   placeholder="e.g. Referred by X, closing date Y..."
@@ -337,7 +350,33 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Setup & Access */}
+              {/* Domain restriction card */}
+              <div className={`rounded-xl border p-4 shadow-sm ${selected.allowedDomain ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Domain Restriction</p>
+                    {selected.allowedDomain
+                      ? <p className="text-sm font-bold text-emerald-700">@{selected.allowedDomain}</p>
+                      : <p className="text-xs text-slate-400">No domain set — any email can be added</p>
+                    }
+                    <p className="text-xs text-slate-400 mt-1">
+                      {selected.allowedDomain
+                        ? 'Only emails from this domain can log in or be invited.'
+                        : 'Set a domain to restrict access to company emails only.'}
+                    </p>
+                  </div>
+                  {selected.allowedDomain && <span className="text-lg">🔒</span>}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-xs text-slate-400">@</span>
+                  <input
+                    defaultValue={selected.allowedDomain || ''}
+                    placeholder="company.com"
+                    onBlur={e => { if (e.target.value !== (selected.allowedDomain || '')) patch(selected.id, { allowedDomain: e.target.value || null }, 'Domain restriction updated') }}
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+              </div>
               <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Setup & Access</p>
 

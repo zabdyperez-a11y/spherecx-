@@ -41,12 +41,13 @@ model Organization {
   slug        String      @unique
   plan        Plan        @default(FREE)
   status      OrgStatus   @default(TRIAL)
-  maxUsers    Int         @default(3)
-  maxEvals    Int         @default(50)
-  contactName String?
-  contactEmail String?
-  notes       String?
-  trialEndsAt DateTime?
+  maxUsers      Int         @default(3)
+  maxEvals      Int         @default(50)
+  contactName   String?
+  contactEmail  String?
+  allowedDomain String?
+  notes         String?
+  trialEndsAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   users       User[]
