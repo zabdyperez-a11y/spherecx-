@@ -29,7 +29,13 @@ export default function LoginPage() {
         router.push('/dashboard')
         router.refresh()
       } else {
-        setError(data.error || 'Invalid email or password.')
+        if (data.code === 'TRIAL_EXPIRED') {
+          router.push('/trial-expired')
+        } else if (data.code === 'SUSPENDED') {
+          setError('Your account has been suspended. Contact support@spherecx.app.')
+        } else {
+          setError(data.error || 'Invalid email or password.')
+        }
       }
     } catch {
       setError('Something went wrong. Please try again.')
