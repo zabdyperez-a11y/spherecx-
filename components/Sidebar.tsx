@@ -10,6 +10,7 @@ const NAV = [
   { label: 'Evaluations', href: '/evaluations', icon: '✓' },
   { label: 'Agents', href: '/agents', icon: '◎' },
   { label: 'Reports', href: '/reports', icon: '↗' },
+  { label: 'Billing', href: '/admin', icon: '◈' },
 ]
 
 export default function Sidebar() {
