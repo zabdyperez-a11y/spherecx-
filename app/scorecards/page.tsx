@@ -37,9 +37,9 @@ export default function ScorecardsPage() {
   const totalCriteria = scorecards.reduce((a, s) => a + s.sections.reduce((b, sec) => b + sec.criteria.length, 0), 0)
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7 max-w-6xl">
+      <main className="app-main flex-1">
         <div className="page-header">
           <div>
             <h1 className="page-title">Scorecards</h1>

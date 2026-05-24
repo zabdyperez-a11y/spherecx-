@@ -50,9 +50,9 @@ export default function OnboardingPage() {
   const filtered = employees.filter(e => `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
         <div className="page-header">
           <div>
             <h1 className="page-title">Onboarding</h1>

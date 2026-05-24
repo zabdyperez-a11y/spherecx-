@@ -54,9 +54,9 @@ export default function DashboardContent() {
   ].filter(Boolean) as { label: string; href: string; color: string }[]
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
 
         {accessDenied && (
           <div className="mb-5 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-center gap-2">
@@ -177,8 +177,8 @@ export default function DashboardContent() {
                   hasPermission(role, 'view_scheduling') && { label: 'Log Attendance', href: '/scheduling', icon: '📅' },
                   hasPermission(role, 'view_training') && { label: 'Training Modules', href: '/training', icon: '📚' },
                   hasPermission(role, 'view_operations') && { label: 'Campaigns', href: '/operations', icon: '📞' },
-                  hasPermission(role, 'view_reports') && { label: 'View Reports', href: '/reports', icon: '📊' },
-                  role === 'AGENT' && { label: 'My Performance', href: '/agent', icon: '🎯' },
+                  hasPermission(role, 'view_reports') && { label: 'View Reports', href: '/reports', icon: '' },
+                  role === 'AGENT' && { label: 'My Performance', href: '/agent', icon: '' },
                 ].filter(Boolean).slice(0, 6).map((item: any) => (
                   <Link key={item.href} href={item.href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group">

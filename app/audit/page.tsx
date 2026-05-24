@@ -133,9 +133,9 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

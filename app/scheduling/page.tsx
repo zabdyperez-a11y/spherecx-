@@ -60,9 +60,9 @@ export default function SchedulingPage() {
   const totalHours = records.reduce((a, r) => a + (r.hoursWorked ?? 0), 0)
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
         <div className="page-header">
           <div>
             <h1 className="page-title">Scheduling & Attendance</h1>
@@ -86,7 +86,7 @@ export default function SchedulingPage() {
         </div>
 
         <div className="flex gap-1 mb-5 bg-white border border-slate-100 rounded-xl p-1 w-fit shadow-sm">
-          {[{ key: 'attendance', label: '📋 Attendance Log' }, { key: 'add', label: '+ Log Entry' }].map(t => (
+          {[{ key: 'attendance', label: 'Attendance Log' }, { key: 'add', label: '+ Log Entry' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}>
               {t.label}

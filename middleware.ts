@@ -26,6 +26,8 @@ const ROUTE_ROLES: { path: string; roles: string[] }[] = [
   { path: '/leave',       roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR'] },
   { path: '/onboarding',  roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] },
   { path: '/payroll',     roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { path: '/integrations', roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { path: '/api/integrations', roles: ['SUPER_ADMIN', 'ADMIN'] },
   { path: '/api/payroll', roles: ['SUPER_ADMIN', 'ADMIN'] },
   { path: '/api/hr/leave', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR'] },
   { path: '/agent',       roles: ['AGENT'] },

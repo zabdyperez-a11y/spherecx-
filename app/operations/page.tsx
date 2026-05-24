@@ -45,9 +45,9 @@ export default function OperationsPage() {
   const convRate = totalCalls > 0 ? Math.round((totalConverted / totalCalls) * 100) : 0
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
         <div className="page-header">
           <div>
             <h1 className="page-title">Operations</h1>
@@ -71,7 +71,7 @@ export default function OperationsPage() {
         </div>
 
         <div className="flex gap-1 mb-5 bg-white border border-slate-100 rounded-xl p-1 w-fit shadow-sm">
-          {[{ key: 'campaigns', label: '📞 Campaigns' }, { key: 'add', label: '+ New Campaign' }].map(t => (
+          {[{ key: 'campaigns', label: 'Campaigns' }, { key: 'add', label: '+ New Campaign' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}>
               {t.label}

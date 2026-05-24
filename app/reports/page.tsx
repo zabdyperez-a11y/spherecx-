@@ -38,7 +38,7 @@ export default function ReportsPage() {
   }
 
   if (loading) return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
       <main className="flex-1 flex items-center justify-center">
         <p className="text-slate-400 text-sm">Loading reports...</p>
@@ -47,7 +47,7 @@ export default function ReportsPage() {
   )
 
   if (!data) return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
       <main className="flex-1 flex items-center justify-center">
         <p className="text-slate-400 text-sm">No data available yet.</p>
@@ -63,9 +63,9 @@ export default function ReportsPage() {
   ].filter(d => d.value > 0)
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
+      <main className="app-main flex-1">
 
         <div className="flex items-center justify-between mb-8">
           <div>
