@@ -250,7 +250,7 @@ export default function AgentsPage() {
               )}
 
               <div className="flex gap-2">
-                <a href="/evaluations/new" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 rounded-lg transition-colors text-center">
+                <a href={`/evaluations/new?agent=${selected.id}`} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 rounded-lg transition-colors text-center">
                   + New Evaluation
                 </a>
               </div>

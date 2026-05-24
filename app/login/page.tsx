@@ -154,9 +154,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-xs text-center mt-8" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            Need access? Contact your administrator.
-          </p>
+          <div className="flex items-center justify-between mt-6 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            <Link href="/forgot-password" className="hover:text-blue-400 transition-colors">Forgot password?</Link>
+            <span>Need access? Contact your admin.</span>
+          </div>
         </div>
       </div>
     </div>

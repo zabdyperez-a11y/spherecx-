@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { logAudit } from '@/lib/audit'
+import bcrypt from 'bcryptjs'
 
 function extractDomain(email: string): string | null {
   const match = email.match(/@(.+)$/)
@@ -32,31 +33,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true })
     }
 
-    // Regular user lookup
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       include: { org: true },
     })
 
-    if (!user || user.password !== password) {
-      await logAudit({
-        userEmail: email, action: 'LOGIN', entity: 'session',
-        details: { success: false, reason: 'Invalid credentials' }, ipAddress: ip,
-      })
+    if (!user || !user.password) {
+      await logAudit({ userEmail: email, action: 'LOGIN', entity: 'session', details: { success: false, reason: 'User not found' }, ipAddress: ip })
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 })
     }
 
-    // Domain check — user's email must match their org's allowed domain
+    // Check password — support both hashed and legacy plain text
+    const validPassword = user.password.startsWith('$2')
+      ? await bcrypt.compare(password, user.password)
+      : user.password === password
+
+    if (!validPassword) {
+      await logAudit({ userEmail: email, action: 'LOGIN', entity: 'session', details: { success: false, reason: 'Wrong password' }, ipAddress: ip })
+      return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 })
+    }
+
+    // Domain check
     if (user.org?.allowedDomain) {
       const emailDomain = extractDomain(email)
       if (emailDomain !== user.org.allowedDomain) {
-        await logAudit({
-          userEmail: email, action: 'LOGIN', entity: 'session',
-          details: { success: false, reason: 'Domain mismatch', required: user.org.allowedDomain }, ipAddress: ip,
-        })
-        return NextResponse.json({
-          error: `Access denied. This organization only allows @${user.org.allowedDomain} accounts.`
-        }, { status: 403 })
+        return NextResponse.json({ error: `Access denied. This organization only allows @${user.org.allowedDomain} accounts.` }, { status: 403 })
       }
     }
 
@@ -71,7 +72,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Set cookies
     const cookieStore = cookies()
     cookieStore.set('spherecx_auth', 'authenticated', {
       httpOnly: true, secure: process.env.NODE_ENV === 'production',
@@ -85,15 +85,20 @@ export async function POST(req: Request) {
       sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
     })
 
+    // Upgrade plain text password to hashed on successful login
+    if (!user.password.startsWith('$2')) {
+      const hashed = await bcrypt.hash(password, 10)
+      await prisma.user.update({ where: { id: user.id }, data: { password: hashed } })
+    }
+
     await logAudit({
       userEmail: email, userName: user.name || undefined, userRole: user.role,
       userId: user.id, orgId: user.orgId || undefined,
-      action: 'LOGIN', entity: 'session',
-      details: { success: true }, ipAddress: ip,
+      action: 'LOGIN', entity: 'session', details: { success: true }, ipAddress: ip,
     })
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (e: any) {
     return NextResponse.json({ error: 'Server error.' }, { status: 500 })
   }
 }

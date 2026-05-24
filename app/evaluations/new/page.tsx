@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 
 type Agent = { id: string; name: string }
@@ -15,12 +15,13 @@ type Answer = 'yes' | 'partial' | 'no' | null
 
 export default function NewEvaluationPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [agents, setAgents] = useState<Agent[]>([])
   const [scorecards, setScorecards] = useState<Scorecard[]>([])
 
-  const [agentId, setAgentId] = useState('')
+  const [agentId, setAgentId] = useState(searchParams.get('agent') || '')
   const [scorecardId, setScorecardId] = useState('')
   const [callDate, setCallDate] = useState('')
   const [callId, setCallId] = useState('')
