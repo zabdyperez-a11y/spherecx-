@@ -142,8 +142,6 @@ model Evaluation {
   callId       String?
   recordingUrl String?
   transcript   String?
-  acknowledged Boolean? @default(false)
-  acknowledgedAt DateTime?
   totalScore   Float?
   passed       Boolean?
   notes        String?
