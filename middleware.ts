@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/trial-expired', '/forgot-password']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/api/auth/reset-password', '/trial-expired', '/forgot-password', '/reset-password']
 const SUPER_ADMIN_ONLY = ['/admin', '/api/admin']
 
 // Pages blocked for AGENT role
