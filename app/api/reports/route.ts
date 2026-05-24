@@ -2,27 +2,20 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getSession, getOrgFilter } from '@/lib/session'
 
 export async function GET() {
-  const session = getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   try {
-    const filter = getOrgFilter(session)
-
     const [evaluations, agents, scorecards] = await Promise.all([
       prisma.evaluation.findMany({
-        where: { ...filter, status: 'SUBMITTED' },
+        where: { status: 'SUBMITTED' },
         include: { agent: true, scorecard: true, answers: true },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.user.findMany({
-        where: { role: 'AGENT', ...filter },
+        where: { role: 'AGENT' },
         include: { evaluationsOf: { where: { status: 'SUBMITTED' }, include: { answers: true } } },
       }),
       prisma.scorecard.findMany({
-        where: filter,
         include: { _count: { select: { evaluations: true } } },
       }),
     ])

@@ -228,3 +228,215 @@ model AuditLog {
   @@index([entity])
   @@index([createdAt])
 }
+
+// ─── HR MODULE ───────────────────────────────────────────
+
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+  SUSPENDED
+}
+
+enum IncidentSeverity {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SUSPENSION
+  TERMINATION
+}
+
+enum ReviewType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+  PIP
+}
+
+model Employee {
+  id               String           @id @default(cuid())
+  orgId            String?
+  userId           String?          @unique
+  employeeId       String?
+  firstName        String
+  lastName         String
+  email            String
+  phone            String?
+  jobTitle         String?
+  department       String?
+  teamId           String?
+  managerId        String?
+  hireDate         DateTime
+  terminationDate  DateTime?
+  status           EmploymentStatus @default(ACTIVE)
+  employmentType   String?
+  payRate          Float?
+  payType          String?
+  location         String?
+  notes            String?
+  emergencyContact String?
+  documents        EmployeeDocument[]
+  incidents        DisciplinaryAction[]
+  reviews          PerformanceReview[]
+  attendance       AttendanceRecord[]
+  shifts           ShiftAssignment[]
+  trainings        TrainingCompletion[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model DisciplinaryAction {
+  id          String           @id @default(cuid())
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgId       String?
+  type        IncidentSeverity
+  date        DateTime
+  description String
+  action      String
+  issuedBy    String
+  witnessedBy String?
+  followUpDate DateTime?
+  resolved    Boolean          @default(false)
+  resolvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+}
+
+model PerformanceReview {
+  id              String      @id @default(cuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgId           String?
+  reviewType      ReviewType
+  reviewDate      DateTime
+  reviewedBy      String
+  qaScore         Float?
+  attendanceScore Float?
+  productivityScore Float?
+  overallScore    Float?
+  strengths       String?
+  improvements    String?
+  goals           String?
+  employeeComment String?
+  acknowledgedAt  DateTime?
+  status          String      @default("DRAFT")
+  createdAt       DateTime    @default(now())
+}
+
+model EmployeeDocument {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  type       String
+  url        String?
+  uploadedAt DateTime @default(now())
+}
+
+// ─── SCHEDULING MODULE ────────────────────────────────────
+
+model Shift {
+  id          String            @id @default(cuid())
+  orgId       String?
+  name        String
+  startTime   String
+  endTime     String
+  days        String
+  color       String            @default("#3b82f6")
+  assignments ShiftAssignment[]
+  createdAt   DateTime          @default(now())
+}
+
+model ShiftAssignment {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId    String
+  shift      Shift    @relation(fields: [shiftId], references: [id])
+  date       DateTime
+  status     String   @default("SCHEDULED")
+  notes      String?
+}
+
+model AttendanceRecord {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgId      String?
+  date       DateTime
+  clockIn    DateTime?
+  clockOut   DateTime?
+  hoursWorked Float?
+  status     String
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+// ─── TRAINING MODULE ──────────────────────────────────────
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+model TrainingModule {
+  id          String              @id @default(cuid())
+  orgId       String?
+  title       String
+  description String?
+  category    String?
+  duration    Int?
+  content     String?
+  isRequired  Boolean             @default(false)
+  dueWithin   Int?
+  completions TrainingCompletion[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model TrainingCompletion {
+  id         String         @id @default(cuid())
+  employeeId String
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  moduleId   String
+  module     TrainingModule @relation(fields: [moduleId], references: [id])
+  status     TrainingStatus @default(NOT_STARTED)
+  startedAt  DateTime?
+  completedAt DateTime?
+  score       Float?
+  expiresAt   DateTime?
+}
+
+// ─── OPERATIONS MODULE ────────────────────────────────────
+
+model Campaign {
+  id          String   @id @default(cuid())
+  orgId       String?
+  name        String
+  type        String
+  status      String   @default("ACTIVE")
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?
+  targetCalls Int?
+  script      String?
+  metrics     CampaignMetric[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CampaignMetric {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  date        DateTime
+  totalCalls  Int      @default(0)
+  answered    Int      @default(0)
+  converted   Int      @default(0)
+  avgHandle   Float?
+  createdAt   DateTime @default(now())
+}
