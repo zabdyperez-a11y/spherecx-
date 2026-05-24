@@ -1,0 +1,14 @@
+User-agent: *
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /audit
+Disallow: /evaluations
+Disallow: /scorecards
+Disallow: /agents
+Disallow: /reports
+Disallow: /api/
+Allow: /login
+Allow: /
+
+Sitemap: https://spherecx.vercel.app/sitemap.xml

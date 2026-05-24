@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { logAudit } from '@/lib/audit'
+import { rateLimit } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
 
 function extractDomain(email: string): string | null {
@@ -13,12 +14,26 @@ function extractDomain(email: string): string | null {
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+
+    // Rate limit: 5 attempts per 15 minutes per IP
+    const limit = rateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+    if (!limit.allowed) {
+      return NextResponse.json({
+        error: `Too many login attempts. Try again in ${limit.retryAfter} seconds.`
+      }, {
+        status: 429,
+        headers: { 'Retry-After': String(limit.retryAfter) }
+      })
+    }
+
     const { email, password } = await req.json()
-    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    if (!email || !password) return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
+
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@spherecx.com'
     const adminPassword = process.env.ADMIN_PASSWORD || 'spherecx2026'
 
-    // Super admin check
+    // Super admin
     if (email.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
       const cookieStore = cookies()
       cookieStore.set('spherecx_auth', 'authenticated', {
@@ -27,8 +42,7 @@ export async function POST(req: Request) {
       })
       await logAudit({
         userEmail: adminEmail, userName: 'Super Admin', userRole: 'SUPER_ADMIN',
-        action: 'LOGIN', entity: 'session',
-        details: { success: true }, ipAddress: ip,
+        action: 'LOGIN', entity: 'session', details: { success: true }, ipAddress: ip,
       })
       return NextResponse.json({ success: true })
     }
@@ -38,12 +52,12 @@ export async function POST(req: Request) {
       include: { org: true },
     })
 
+    // Deliberately vague error — don't reveal if email exists
     if (!user || !user.password) {
-      await logAudit({ userEmail: email, action: 'LOGIN', entity: 'session', details: { success: false, reason: 'User not found' }, ipAddress: ip })
+      await logAudit({ userEmail: email, action: 'LOGIN', entity: 'session', details: { success: false, reason: 'Not found' }, ipAddress: ip })
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 })
     }
 
-    // Check password — support both hashed and legacy plain text
     const validPassword = user.password.startsWith('$2')
       ? await bcrypt.compare(password, user.password)
       : user.password === password
@@ -85,7 +99,7 @@ export async function POST(req: Request) {
       sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
     })
 
-    // Upgrade plain text password to hashed on successful login
+    // Upgrade plain text password to hashed
     if (!user.password.startsWith('$2')) {
       const hashed = await bcrypt.hash(password, 10)
       await prisma.user.update({ where: { id: user.id }, data: { password: hashed } })
@@ -98,7 +112,7 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (e: any) {
+  } catch {
     return NextResponse.json({ error: 'Server error.' }, { status: 500 })
   }
 }

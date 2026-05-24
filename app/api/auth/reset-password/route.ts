@@ -3,22 +3,31 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import { rateLimit } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+
+    // Rate limit: 3 reset requests per hour per IP
+    const limit = rateLimit(`reset:${ip}`, 3, 60 * 60 * 1000)
+    if (!limit.allowed) {
+      return NextResponse.json({
+        error: `Too many requests. Try again in ${limit.retryAfter} seconds.`
+      }, { status: 429 })
+    }
+
     const { email, token, newPassword } = await req.json()
 
     // REQUEST reset
     if (email && !token) {
       const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-
-      // Always return success to prevent email enumeration
-      if (!user) return NextResponse.json({ success: true })
+      if (!user) return NextResponse.json({ success: true }) // Always succeed — don't reveal if email exists
 
       const resetToken = crypto.randomBytes(32).toString('hex')
-      const expiry = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+      const expiry = new Date(Date.now() + 60 * 60 * 1000)
 
       await prisma.user.update({
         where: { id: user.id },
@@ -57,6 +66,10 @@ export async function POST(req: Request) {
 
     // CONFIRM reset
     if (token && newPassword && email) {
+      if (newPassword.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
+      }
+
       const user = await prisma.user.findFirst({
         where: {
           email: email.toLowerCase(),
@@ -65,9 +78,7 @@ export async function POST(req: Request) {
         },
       })
 
-      if (!user) {
-        return NextResponse.json({ error: 'Invalid or expired reset link.' }, { status: 400 })
-      }
+      if (!user) return NextResponse.json({ error: 'Invalid or expired reset link.' }, { status: 400 })
 
       const hashed = await bcrypt.hash(newPassword, 10)
       await prisma.user.update({
@@ -80,6 +91,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ error: 'Server error.' }, { status: 500 })
   }
 }
