@@ -23,9 +23,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const body = await req.json()
+    const updateData: any = {}
+    if (body.status) updateData.status = body.status
+    if (body.acknowledged !== undefined) updateData.acknowledged = body.acknowledged
+
     const evaluation = await prisma.evaluation.update({
       where: { id: params.id },
-      data: { status: body.status },
+      data: updateData,
       include: { agent: true, scorecard: true },
     })
     return NextResponse.json(evaluation)

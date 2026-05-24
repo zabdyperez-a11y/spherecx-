@@ -33,6 +33,7 @@ enum EvalStatus {
   SUBMITTED
   DISPUTED
   RESOLVED
+  ACKNOWLEDGED
 }
 
 model Organization {
@@ -141,13 +142,19 @@ model Evaluation {
   callId       String?
   recordingUrl String?
   transcript   String?
+  acknowledged Boolean? @default(false)
+  acknowledgedAt DateTime?
   totalScore   Float?
   passed       Boolean?
   notes        String?
   answers      Answer[]
   status       EvalStatus   @default(DRAFT)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  coachingNote String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  comments     EvaluationComment[]
 }
 
 model Answer {
@@ -183,6 +190,17 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EvaluationComment {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  userId       String?
+  userName     String
+  userRole     String?
+  content      String
+  createdAt    DateTime   @default(now())
 }
 
 model VerificationToken {
