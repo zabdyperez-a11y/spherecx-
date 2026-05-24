@@ -23,7 +23,7 @@ export default function ReportsPage() {
   useEffect(() => {
     fetch('/api/reports')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
+      .then(d => { if (d && d.summary) setData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
