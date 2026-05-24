@@ -12,7 +12,7 @@ type Evaluation = {
   notes: string | null; status: string; createdAt: string
   agent: { id: string; name: string | null; email: string }
   evaluator: { id: string; name: string | null }
-  scorecard: { name: string; sections: { id: string; name: string; criteria: { id: string; question: string }[] }[] }
+  scorecard: { name: string; sections: { id: string; name: string; criteria: { id: string; question: string; isCritical: boolean }[] }[] }
   answers: Answer[]
 }
 
