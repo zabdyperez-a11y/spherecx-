@@ -23,6 +23,11 @@ const ROUTE_ROLES: { path: string; roles: string[] }[] = [
   { path: '/scorecards',  roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR', 'QA_ANALYST'] },
   { path: '/agents',      roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR', 'TEAM_LEAD', 'QA_ANALYST'] },
   { path: '/training',    roles: ['*'] },
+  { path: '/leave',       roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR'] },
+  { path: '/onboarding',  roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] },
+  { path: '/payroll',     roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { path: '/api/payroll', roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { path: '/api/hr/leave', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR'] },
   { path: '/agent',       roles: ['AGENT'] },
   { path: '/evaluations', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR', 'TEAM_LEAD', 'QA_ANALYST'] },
 ]

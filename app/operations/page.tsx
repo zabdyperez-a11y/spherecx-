@@ -212,3 +212,4 @@ export default function OperationsPage() {
     </div>
   )
 }
+// Metrics logging is handled via /api/operations/campaigns/[id]/metrics

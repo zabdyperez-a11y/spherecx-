@@ -73,5 +73,8 @@ export const NAV_ITEMS = [
   { label: 'Reports',       href: '/reports',     icon: 'bar-chart',    roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR','TEAM_LEAD','QA_ANALYST'] },
   { label: 'Audit Log',     href: '/audit',       icon: 'log',          roles: ['SUPER_ADMIN','ADMIN'] },
   { label: 'Settings',      href: '/settings',    icon: 'settings',     roles: ['SUPER_ADMIN','ADMIN'] },
+  { label: 'Leave',         href: '/leave',       icon: 'calendar',     roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR'] },
+  { label: 'Onboarding',    href: '/onboarding',  icon: 'book',         roles: ['SUPER_ADMIN','ADMIN','MANAGER'] },
+  { label: 'Payroll',       href: '/payroll',     icon: 'credit-card',  roles: ['SUPER_ADMIN','ADMIN'] },
   { label: 'Billing',       href: '/admin',       icon: 'credit-card',  roles: ['SUPER_ADMIN'] },
 ]
