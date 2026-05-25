@@ -147,3 +147,66 @@ enum EvalStatus {
   DISPUTED
   RESOLVED
 }
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+enum LeaveType {
+  PTO
+  SICK
+  PERSONAL
+  BEREAVEMENT
+  UNPAID
+  OTHER
+}
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgId       String?
+  type        LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  days        Float
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime    @default(now())
+}
+
+model OnboardingTemplate {
+  id        String            @id @default(cuid())
+  orgId     String?
+  name      String
+  tasks     OnboardingTask[]
+  createdAt DateTime          @default(now())
+}
+
+model OnboardingTask {
+  id           String               @id @default(cuid())
+  templateId   String
+  template     OnboardingTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  dueWithin    Int?
+  assignedTo   String?
+  order        Int                  @default(0)
+  completions  OnboardingCompletion[]
+}
+
+model OnboardingCompletion {
+  id          String         @id @default(cuid())
+  taskId      String
+  task        OnboardingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employeeId  String
+  completedAt DateTime?
+  completedBy String?
+  notes       String?
+}
