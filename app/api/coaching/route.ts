@@ -4,35 +4,26 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const { agent, scorecard, score, passed, answers, transcript, notes } = await req.json()
+    const { agent, scorecard, answers } = await req.json()
 
-    const criteriaResults = Object.entries(answers)
+    const criteriaText = Object.entries(answers as Record<string, string>)
       .map(([criterion, result]) => `- ${criterion}: ${result}`)
-      .join('
-')
+      .join('\n')
 
     const prompt = `You are an expert call center coach. An evaluation was just completed for ${agent}.
 
-SCORECARD: ${scorecard}
-OVERALL SCORE: ${score}% (${passed ? 'PASS' : 'FAIL'})
+Scorecard: ${scorecard}
 
-CRITERIA RESULTS:
-${criteriaResults}
+Results:
+${criteriaText}
 
-${transcript ? `CALL TRANSCRIPT EXCERPT:
-${transcript.slice(0, 1500)}` : ''}
+Write a professional, specific coaching summary (3-4 paragraphs) that:
+1. Acknowledges what the agent did well
+2. Identifies the specific areas that need improvement
+3. Gives concrete, actionable steps to improve
+4. Ends with an encouraging note
 
-${notes ? `EVALUATOR NOTES: ${notes}` : ''}
-
-Generate a personalized coaching summary. Respond ONLY with a valid JSON object, no markdown, no backticks:
-{
-  "headline": "One encouraging sentence summarizing their performance (use their first name)",
-  "overallFeedback": "2-3 sentences of honest, specific overall assessment",
-  "strengths": ["3 specific strengths based on what they did well, each 1-2 sentences"],
-  "improvements": ["2-3 specific areas to improve, each with a concrete actionable tip"],
-  "actionItems": ["3 specific action items for next call, short and actionable"],
-  "coachingNote": "One motivating closing sentence personalized to their situation"
-}`
+Be specific, not generic. Reference the actual criteria results.`
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -42,25 +33,18 @@ Generate a personalized coaching summary. Respond ONLY with a valid JSON object,
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 1200,
+        max_tokens: 600,
         messages: [
-          {
-            role: 'system',
-            content: 'You are an expert call center coach. Always respond with ONLY valid JSON. No markdown, no backticks, no explanation.',
-          },
+          { role: 'system', content: 'You are an expert call center QA coach.' },
           { role: 'user', content: prompt },
         ],
       }),
     })
 
     const data = await res.json()
-    let text = data.choices?.[0]?.message?.content ?? ''
-    text = text.replace(/```json
-?/g, '').replace(/```
-?/g, '').trim()
-    const summary = JSON.parse(text)
-    return NextResponse.json(summary)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to generate coaching summary' }, { status: 500 })
+    const coaching = data.choices?.[0]?.message?.content ?? 'Unable to generate coaching summary.'
+    return NextResponse.json({ coaching })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
