@@ -3,141 +3,31 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String       @unique
-  emailVerified DateTime?
-  image         String?
-  role          Role         @default(AGENT)
-  teamId        String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  accounts      Account[]
-  evaluationsOf Evaluation[] @relation("AgentRelation")
-  evaluationsBy Evaluation[] @relation("EvaluatorRelation")
-  sessions      Session[]
-  team          Team?        @relation(fields: [teamId], references: [id])
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
 }
 
-model Team {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  scorecards  Scorecard[]
-  members     User[]
-}
-
-model Scorecard {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  teamId      String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  evaluations Evaluation[]
-  team        Team?        @relation(fields: [teamId], references: [id])
-  sections    Section[]
-}
-
-model Section {
-  id          String      @id @default(cuid())
-  name        String
-  weight      Float       @default(1.0)
-  scorecardId String
-  order       Int         @default(0)
-  criteria    Criterion[]
-  scorecard   Scorecard   @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
-}
-
-model Criterion {
-  id          String   @id @default(cuid())
-  question    String
-  description String?
-  weight      Float    @default(1.0)
-  isCritical  Boolean  @default(false)
-  sectionId   String
-  order       Int      @default(0)
-  answers     Answer[]
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-}
-
-model Evaluation {
-  id           String     @id @default(cuid())
-  scorecardId  String
-  evaluatorId  String
-  agentId      String
-  callDate     DateTime
-  callId       String?
-  recordingUrl String?
-  transcript   String?
-  totalScore   Float?
-  passed       Boolean?
-  notes        String?
-  status       EvalStatus @default(DRAFT)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  answers      Answer[]
-  agent        User       @relation("AgentRelation", fields: [agentId], references: [id])
-  evaluator    User       @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
-  scorecard    Scorecard  @relation(fields: [scorecardId], references: [id])
-}
-
-model Answer {
-  id           String     @id @default(cuid())
-  evaluationId String
-  criterionId  String
-  score        Int
-  note         String?
-  criterion    Criterion  @relation(fields: [criterionId], references: [id])
-  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
+enum OrgStatus {
+  ACTIVE
+  TRIAL
+  SUSPENDED
+  CANCELLED
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
-  QA_ANALYST
+  MANAGER
+  SUPERVISOR
   TEAM_LEAD
+  QA_ANALYST
   AGENT
 }
 
@@ -146,69 +36,7 @@ enum EvalStatus {
   SUBMITTED
   DISPUTED
   RESOLVED
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  DENIED
-  CANCELLED
-}
-
-enum LeaveType {
-  PTO
-  SICK
-  PERSONAL
-  BEREAVEMENT
-  UNPAID
-  OTHER
-}
-
-model LeaveRequest {
-  id          String      @id @default(cuid())
-  employeeId  String
-  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  orgId       String?
-  type        LeaveType
-  startDate   DateTime
-  endDate     DateTime
-  days        Float
-  reason      String?
-  status      LeaveStatus @default(PENDING)
-  reviewedBy  String?
-  reviewedAt  DateTime?
-  reviewNote  String?
-  createdAt   DateTime    @default(now())
-}
-
-model OnboardingTemplate {
-  id        String            @id @default(cuid())
-  orgId     String?
-  name      String
-  tasks     OnboardingTask[]
-  createdAt DateTime          @default(now())
-}
-
-model OnboardingTask {
-  id           String               @id @default(cuid())
-  templateId   String
-  template     OnboardingTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  title        String
-  description  String?
-  dueWithin    Int?
-  assignedTo   String?
-  order        Int                  @default(0)
-  completions  OnboardingCompletion[]
-}
-
-model OnboardingCompletion {
-  id          String         @id @default(cuid())
-  taskId      String
-  task        OnboardingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  employeeId  String
-  completedAt DateTime?
-  completedBy String?
-  notes       String?
+  ACKNOWLEDGED
 }
 
 enum EmploymentStatus {
@@ -241,10 +69,161 @@ enum TrainingStatus {
   EXPIRED
 }
 
-model Employee {
-  id               String             @id @default(cuid())
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+enum LeaveType {
+  PTO
+  SICK
+  PERSONAL
+  BEREAVEMENT
+  UNPAID
+  OTHER
+}
+
+model Organization {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  plan          Plan      @default(FREE)
+  status        OrgStatus @default(TRIAL)
+  maxUsers      Int       @default(3)
+  maxEvals      Int       @default(50)
+  trialEndsAt   DateTime?
+  allowedDomain String?
+  users         User[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model User {
+  id               String       @id @default(cuid())
+  email            String       @unique
+  name             String?
+  password         String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  role             Role         @default(AGENT)
   orgId            String?
-  userId           String?            @unique
+  org              Organization? @relation(fields: [orgId], references: [id])
+  teamId           String?
+  team             Team?        @relation(fields: [teamId], references: [id])
+  evaluationsDone  Evaluation[] @relation("EvaluatorRelation")
+  evaluationsOf    Evaluation[] @relation("AgentRelation")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  orgId     String?
+  members   User[]
+  createdAt DateTime @default(now())
+}
+
+model Scorecard {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean     @default(true)
+  orgId       String?
+  sections    Section[]
+  evaluations Evaluation[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Section {
+  id          String      @id @default(cuid())
+  name        String
+  scorecardId String
+  scorecard   Scorecard   @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  criteria    Criterion[]
+  order       Int         @default(0)
+}
+
+model Criterion {
+  id          String  @id @default(cuid())
+  question    String
+  description String?
+  weight      Float   @default(1)
+  isCritical  Boolean @default(false)
+  sectionId   String
+  section     Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+}
+
+model Evaluation {
+  id             String             @id @default(cuid())
+  scorecardId    String
+  scorecard      Scorecard          @relation(fields: [scorecardId], references: [id])
+  agentId        String
+  agent          User               @relation("AgentRelation", fields: [agentId], references: [id])
+  evaluatorId    String
+  evaluator      User               @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
+  orgId          String?
+  callDate       DateTime
+  callId         String?
+  recordingUrl   String?
+  transcript     String?
+  totalScore     Float?
+  passed         Boolean?
+  notes          String?
+  coachingNote   String?
+  status         EvalStatus         @default(DRAFT)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  answers        Answer[]
+  comments       EvaluationComment[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Answer {
+  id          String    @id @default(cuid())
+  evaluationId String
+  evaluation  Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criterionId String
+  criterion   Criterion  @relation(fields: [criterionId], references: [id])
+  score       Int
+  note        String?
+}
+
+model EvaluationComment {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  userId       String?
+  userName     String
+  userRole     String?
+  content      String
+  createdAt    DateTime   @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String?
+  userId    String?
+  userEmail String
+  userName  String?
+  userRole  String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Employee {
+  id               String               @id @default(cuid())
+  orgId            String?
+  userId           String?              @unique
   employeeId       String?
   firstName        String
   lastName         String
@@ -256,7 +235,7 @@ model Employee {
   managerId        String?
   hireDate         DateTime
   terminationDate  DateTime?
-  status           EmploymentStatus   @default(ACTIVE)
+  status           EmploymentStatus     @default(ACTIVE)
   employmentType   String?
   payRate          Float?
   payType          String?
@@ -270,8 +249,8 @@ model Employee {
   shifts           ShiftAssignment[]
   trainings        TrainingCompletion[]
   leaveRequests    LeaveRequest[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 }
 
 model DisciplinaryAction {
@@ -347,9 +326,9 @@ model ShiftAssignment {
 }
 
 model AttendanceRecord {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   orgId       String?
   date        DateTime
   clockIn     DateTime?
@@ -357,7 +336,7 @@ model AttendanceRecord {
   hoursWorked Float?
   status      String
   notes       String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 }
 
 model TrainingModule {
@@ -388,6 +367,53 @@ model TrainingCompletion {
   expiresAt   DateTime?
 }
 
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  orgId      String?
+  type       LeaveType
+  startDate  DateTime
+  endDate    DateTime
+  days       Float
+  reason     String?
+  status     LeaveStatus @default(PENDING)
+  reviewedBy String?
+  reviewedAt DateTime?
+  reviewNote String?
+  createdAt  DateTime    @default(now())
+}
+
+model OnboardingTemplate {
+  id        String           @id @default(cuid())
+  orgId     String?
+  name      String
+  tasks     OnboardingTask[]
+  createdAt DateTime         @default(now())
+}
+
+model OnboardingTask {
+  id          String               @id @default(cuid())
+  templateId  String
+  template    OnboardingTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueWithin   Int?
+  assignedTo  String?
+  order       Int                  @default(0)
+  completions OnboardingCompletion[]
+}
+
+model OnboardingCompletion {
+  id          String         @id @default(cuid())
+  taskId      String
+  task        OnboardingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employeeId  String
+  completedAt DateTime?
+  completedBy String?
+  notes       String?
+}
+
 model Campaign {
   id          String           @id @default(cuid())
   orgId       String?
@@ -414,4 +440,36 @@ model CampaignMetric {
   converted  Int      @default(0)
   avgHandle  Float?
   createdAt  DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
