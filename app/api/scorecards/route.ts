@@ -1,62 +1,54 @@
-export const dynamic = 'force-dynamic'
-
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
     const scorecards = await prisma.scorecard.findMany({
       include: {
         sections: {
-          include: { criteria: { orderBy: { order: 'asc' } } },
-          orderBy: { order: 'asc' },
+          include: { criteria: true },
         },
         _count: { select: { evaluations: true } },
       },
       orderBy: { updatedAt: 'desc' },
     })
     return NextResponse.json(scorecards)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch scorecards' }, { status: 500 })
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const { name, description, sections } = await req.json()
+    const body = await req.json()
+    const { name, description, passScore, sections } = body
+
     const scorecard = await prisma.scorecard.create({
       data: {
-        name, description: description || null,
+        name,
+        description,
         sections: {
-          create: sections.map((s: any, si: number) => ({
-            name: s.name, order: si,
+          create: sections.map((section: any, si: number) => ({
+            name: section.name,
+            order: si,
             criteria: {
-              create: s.criteria.map((c: any, ci: number) => ({
+              create: section.criteria.map((c: any, ci: number) => ({
                 question: c.question,
-                isCritical: c.isCritical || false,
-                weight: 1, order: ci,
+                isCritical: c.isCritical ?? false,
+                weight: c.weight ?? 1,
+                order: ci,
               })),
             },
           })),
         },
       },
-      include: { sections: { include: { criteria: true } } },
-    })
-
-    const ip = req.headers.get('x-forwarded-for') || 'unknown'
-    await logAudit({
-      userEmail: 'admin@spherecx.com',
-      action: 'CREATE',
-      entity: 'scorecard',
-      entityId: scorecard.id,
-      entityName: scorecard.name,
-      details: { sections: sections.length },
-      ipAddress: ip,
+      include: {
+        sections: { include: { criteria: true } },
+      },
     })
 
     return NextResponse.json(scorecard, { status: 201 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to create scorecard' }, { status: 500 })
   }
 }

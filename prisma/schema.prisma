@@ -7,21 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Plan {
-  FREE
-  PRO
-  ENTERPRISE
-}
-
-enum OrgStatus {
-  ACTIVE
-  TRIAL
-  SUSPENDED
-  CANCELLED
-}
-
 enum Role {
-  SUPER_ADMIN
   ADMIN
   QA_ANALYST
   TEAM_LEAD
@@ -35,64 +21,37 @@ enum EvalStatus {
   RESOLVED
 }
 
-model Organization {
-  id          String      @id @default(cuid())
-  name        String
-  slug        String      @unique
-  plan        Plan        @default(FREE)
-  status      OrgStatus   @default(TRIAL)
-  maxUsers    Int         @default(3)
-  maxEvals    Int         @default(50)
-  contactName String?
-  contactEmail String?
-  notes       String?
-  trialEndsAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  users       User[]
-  teams       Team[]
-  scorecards  Scorecard[]
-  evaluations Evaluation[]
-}
-
 model User {
-  id             String       @id @default(cuid())
-  name           String?
-  email          String       @unique
-  password       String?
-  emailVerified  DateTime?
-  image          String?
-  role           Role         @default(AGENT)
-  orgId          String?
-  org            Organization? @relation(fields: [orgId], references: [id])
-  teamId         String?
-  team           Team?        @relation(fields: [teamId], references: [id])
-  accounts       Account[]
-  sessions       Session[]
-  evaluationsBy  Evaluation[] @relation("EvaluatorRelation")
-  evaluationsOf  Evaluation[] @relation("AgentRelation")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  name          String?
+  email         String       @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role         @default(AGENT)
+  teamId        String?
+  team          Team?        @relation(fields: [teamId], references: [id])
+  accounts      Account[]
+  sessions      Session[]
+  evaluationsBy Evaluation[] @relation("EvaluatorRelation")
+  evaluationsOf Evaluation[] @relation("AgentRelation")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model Team {
-  id          String       @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
-  orgId       String?
-  org         Organization? @relation(fields: [orgId], references: [id])
   members     User[]
   scorecards  Scorecard[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model Scorecard {
   id          String       @id @default(cuid())
   name        String
   description String?
-  orgId       String?
-  org         Organization? @relation(fields: [orgId], references: [id])
   teamId      String?
   team        Team?        @relation(fields: [teamId], references: [id])
   sections    Section[]
@@ -113,27 +72,25 @@ model Section {
 }
 
 model Criterion {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   question    String
   description String?
-  weight      Float      @default(1.0)
-  isCritical  Boolean    @default(false)
+  weight      Float    @default(1.0)
+  isCritical  Boolean  @default(false)
   sectionId   String
-  section     Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   answers     Answer[]
-  order       Int        @default(0)
+  order       Int      @default(0)
 }
 
 model Evaluation {
-  id           String       @id @default(cuid())
-  orgId        String?
-  org          Organization? @relation(fields: [orgId], references: [id])
+  id           String     @id @default(cuid())
   scorecardId  String
-  scorecard    Scorecard    @relation(fields: [scorecardId], references: [id])
+  scorecard    Scorecard  @relation(fields: [scorecardId], references: [id])
   evaluatorId  String
-  evaluator    User         @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
+  evaluator    User       @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
   agentId      String
-  agent        User         @relation("AgentRelation", fields: [agentId], references: [id])
+  agent        User       @relation("AgentRelation", fields: [agentId], references: [id])
   callDate     DateTime
   callId       String?
   recordingUrl String?
@@ -142,9 +99,9 @@ model Evaluation {
   passed       Boolean?
   notes        String?
   answers      Answer[]
-  status       EvalStatus   @default(DRAFT)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  status       EvalStatus @default(DRAFT)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Answer {
@@ -171,6 +128,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -186,26 +144,6 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
-}
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  orgId      String?
-  userId     String?
-  userEmail  String
-  userName   String?
-  userRole   String?
-  action     String
-  entity     String
-  entityId   String?
-  entityName String?
-  details    String?
-  ipAddress  String?
-  createdAt  DateTime @default(now())
-
-  @@index([orgId])
-  @@index([userId])
-  @@index([entity])
-  @@index([createdAt])
 }

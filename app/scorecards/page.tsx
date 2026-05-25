@@ -1,121 +1,153 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import Sidebar from '@/components/Sidebar'
 
-type Scorecard = {
-  id: string
-  name: string
-  description: string | null
-  isActive: boolean
-  updatedAt: string
-  sections: { id: string; criteria: { id: string }[] }[]
-  _count: { evaluations: number }
-}
+const MOCK_SCORECARDS = [
+  {
+    id: '1',
+    name: 'Inbound Sales Call',
+    description: 'Standard evaluation for inbound sales interactions',
+    sections: 4,
+    criteria: 18,
+    passScore: 80,
+    isActive: true,
+    updatedAt: '2026-05-20',
+  },
+  {
+    id: '2',
+    name: 'Customer Support — Tier 1',
+    description: 'Basic support call quality evaluation',
+    sections: 3,
+    criteria: 12,
+    passScore: 75,
+    isActive: true,
+    updatedAt: '2026-05-18',
+  },
+  {
+    id: '3',
+    name: 'Escalation Handling',
+    description: 'For complex or escalated customer situations',
+    sections: 5,
+    criteria: 22,
+    passScore: 85,
+    isActive: false,
+    updatedAt: '2026-05-10',
+  },
+]
 
 export default function ScorecardsPage() {
-  const [scorecards, setScorecards] = useState<Scorecard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-
-  useEffect(() => {
-    fetch('/api/scorecards')
-      .then(r => r.json())
-      .then(data => { setScorecards(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
-
-  const filtered = scorecards.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const deleteScorecard = async (id: string) => {
-    await fetch(`/api/scorecards/${id}`, { method: 'DELETE' })
-    setScorecards(scorecards.filter(s => s.id !== id))
-  }
+  const [scorecards] = useState(MOCK_SCORECARDS)
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 px-8 py-7">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Scorecards</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Manage your QA evaluation templates</p>
-          </div>
-          <Link href="/scorecards/new"
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            + New Scorecard
-          </Link>
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Header */}
+      <div className="border-b border-slate-800 px-8 py-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">SphereCX</p>
+          <h1 className="text-xl font-semibold text-white">Scorecards</h1>
         </div>
+        <Link
+          href="/scorecards/new"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+        >
+          <span className="text-lg leading-none">+</span> New Scorecard
+        </Link>
+      </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { label: 'Total Scorecards', value: scorecards.length },
-            { label: 'Active', value: scorecards.filter(s => s.isActive).length },
-            { label: 'Total Criteria', value: scorecards.reduce((a, s) => a + s.sections.reduce((b, sec) => b + sec.criteria.length, 0), 0) },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm">
-              <p className="text-xs text-slate-400 mb-1">{s.label}</p>
-              <p className="text-2xl font-semibold text-slate-900">{s.value}</p>
-            </div>
+      {/* Nav */}
+      <div className="border-b border-slate-800 px-8">
+        <nav className="flex gap-6 text-sm">
+          {['Dashboard', 'Scorecards', 'Evaluations', 'Agents', 'Reports'].map((item) => (
+            <a
+              key={item}
+              href="#"
+              className={`py-3 border-b-2 transition-colors ${
+                item === 'Scorecards'
+                  ? 'border-indigo-500 text-white'
+                  : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              {item}
+            </a>
           ))}
+        </nav>
+      </div>
+
+      {/* Content */}
+      <div className="px-8 py-6">
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <StatCard label="Total Scorecards" value={scorecards.length} />
+          <StatCard label="Active" value={scorecards.filter((s) => s.isActive).length} />
+          <StatCard label="Total Criteria" value={scorecards.reduce((a, s) => a + s.criteria, 0)} />
         </div>
 
-        <div className="flex items-center gap-3 mb-4">
-          <input type="text" placeholder="Search scorecards..." value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400 w-64 shadow-sm" />
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-          {loading ? (
-            <div className="px-5 py-10 text-center text-sm text-slate-400">Loading scorecards...</div>
-          ) : filtered.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <p className="text-slate-400 text-sm mb-3">No scorecards yet.</p>
-              <Link href="/scorecards/new" className="text-blue-600 text-sm font-medium hover:underline">Create your first scorecard →</Link>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  {['Name', 'Sections', 'Criteria', 'Evaluations', 'Status', 'Updated', ''].map(h => (
-                    <th key={h} className="text-left text-xs text-slate-400 font-medium px-5 py-3">{h}</th>
-                  ))}
+        {/* Table */}
+        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-800">
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Name</th>
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Sections</th>
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Criteria</th>
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Pass Score</th>
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Status</th>
+                <th className="text-left text-xs text-slate-400 font-medium uppercase tracking-wider px-6 py-4">Updated</th>
+                <th className="px-6 py-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {scorecards.map((sc, i) => (
+                <tr
+                  key={sc.id}
+                  className={`border-b border-slate-800 hover:bg-slate-800/50 transition-colors ${
+                    i === scorecards.length - 1 ? 'border-b-0' : ''
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <p className="text-white font-medium text-sm">{sc.name}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{sc.description}</p>
+                  </td>
+                  <td className="px-6 py-4 text-slate-300 text-sm">{sc.sections}</td>
+                  <td className="px-6 py-4 text-slate-300 text-sm">{sc.criteria}</td>
+                  <td className="px-6 py-4 text-slate-300 text-sm">{sc.passScore}%</td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                        sc.isActive
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-slate-700 text-slate-400'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${sc.isActive ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                      {sc.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 text-sm">{sc.updatedAt}</td>
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/scorecards/${sc.id}`}
+                      className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+                    >
+                      Edit →
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((sc, i) => (
-                  <tr key={sc.id} className={`hover:bg-slate-50 transition-colors ${i < filtered.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                    <td className="px-5 py-4">
-                      <p className="text-sm font-medium text-slate-900">{sc.name}</p>
-                      {sc.description && <p className="text-xs text-slate-400 mt-0.5">{sc.description}</p>}
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-600">{sc.sections.length}</td>
-                    <td className="px-5 py-4 text-sm text-slate-600">{sc.sections.reduce((a, s) => a + s.criteria.length, 0)}</td>
-                    <td className="px-5 py-4 text-sm text-slate-600">{sc._count.evaluations}</td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${sc.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sc.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {sc.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-400">{new Date(sc.updatedAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <Link href={`/scorecards/${sc.id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Edit</Link>
-                        <button onClick={() => deleteScorecard(sc.id)} className="text-xs text-red-400 hover:text-red-600 font-medium">Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
-      </main>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl px-6 py-4">
+      <p className="text-xs text-slate-500 uppercase tracking-wider">{label}</p>
+      <p className="text-3xl font-bold text-white mt-1">{value}</p>
     </div>
   )
 }
