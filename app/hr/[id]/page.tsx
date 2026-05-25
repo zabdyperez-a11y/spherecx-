@@ -80,16 +80,22 @@ export default function EmployeeDetailPage() {
   }
 
   if (loading) return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}><Sidebar />
-      <main className="flex-1 flex items-center justify-center"><p className="text-slate-400">Loading employee file...</p></main>
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+      <Sidebar />
+      <main className="app-main flex-1 flex items-center justify-center">
+        <p style={{ color: "var(--text-3)" }}>Loading...</p>
+      </main>
     </div>
   )
 
   if (!employee) return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}><Sidebar />
-      <main className="flex-1 flex items-center justify-center">
-        <div className="text-center"><p className="text-slate-400 mb-2">Employee not found.</p>
-          <Link href="/hr" className="text-blue-600 text-sm">← Back to HR</Link></div>
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+      <Sidebar />
+      <main className="app-main flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p style={{ color: "var(--text-3)" }} className="mb-2">Employee not found.</p>
+          <Link href="/hr" className="text-blue-600 text-sm">Back to HR</Link>
+        </div>
       </main>
     </div>
   )
