@@ -4,26 +4,13 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const { agent, scorecard, answers } = await req.json()
+    const { agent, scorecard, score, passed, answers, transcript, notes } = await req.json()
 
-    const criteriaText = Object.entries(answers as Record<string, string>)
+    const criteriaResults = Object.entries(answers || {})
       .map(([criterion, result]) => `- ${criterion}: ${result}`)
-      .join('\n')
+      .join(', ')
 
-    const prompt = `You are an expert call center coach. An evaluation was just completed for ${agent}.
-
-Scorecard: ${scorecard}
-
-Results:
-${criteriaText}
-
-Write a professional, specific coaching summary (3-4 paragraphs) that:
-1. Acknowledges what the agent did well
-2. Identifies the specific areas that need improvement
-3. Gives concrete, actionable steps to improve
-4. Ends with an encouraging note
-
-Be specific, not generic. Reference the actual criteria results.`
+    const prompt = `You are an expert call center coach. An evaluation was just completed for ${agent}. Scorecard: ${scorecard}. Overall Score: ${score}% (${passed ? 'PASS' : 'FAIL'}). Criteria Results: ${criteriaResults}. ${transcript ? `Transcript excerpt: ${transcript.slice(0, 1000)}` : ''} ${notes ? `Evaluator notes: ${notes}` : ''} Generate a personalized coaching summary. Respond ONLY with a valid JSON object, no markdown: {"headline": "one encouraging sentence using their first name","overallFeedback": "2-3 sentences of honest assessment","strengths": ["3 specific strengths, each 1-2 sentences"],"improvements": ["2-3 areas to improve with actionable tips"],"actionItems": ["3 specific action items for next call"],"coachingNote": "one motivating closing sentence"}`
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -33,18 +20,20 @@ Be specific, not generic. Reference the actual criteria results.`
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 600,
+        max_tokens: 1200,
         messages: [
-          { role: 'system', content: 'You are an expert call center QA coach.' },
+          { role: 'system', content: 'You are an expert call center coach. Always respond with ONLY valid JSON. No markdown, no backticks.' },
           { role: 'user', content: prompt },
         ],
       }),
     })
 
     const data = await res.json()
-    const coaching = data.choices?.[0]?.message?.content ?? 'Unable to generate coaching summary.'
-    return NextResponse.json({ coaching })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    let text = data.choices?.[0]?.message?.content ?? ''
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const summary = JSON.parse(text)
+    return NextResponse.json(summary)
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to generate coaching summary' }, { status: 500 })
   }
 }

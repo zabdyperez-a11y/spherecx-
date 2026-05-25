@@ -143,9 +143,9 @@ export default function SettingsPage() {
   )
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="app-main flex-1">
+      <main className="flex-1 px-8 py-7">
 
         {/* Header */}
         <div className="mb-8">
@@ -206,12 +206,7 @@ export default function SettingsPage() {
                 </div>
                 {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
                 <div className="flex gap-3 mt-4">
-                  {users.length >= MOCK_BILLING.seats.max && (
-            <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3">
-              ⚠️ You&apos;ve reached your plan limit of {MOCK_BILLING.seats.max} users. Upgrade to add more.
-            </div>
-          )}
-      <button onClick={inviteUser} disabled={saving || users.length >= MOCK_BILLING.seats.max}
+                  <button onClick={inviteUser} disabled={saving}
                     className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg disabled:opacity-50">
                     {saving ? 'Inviting...' : 'Send Invite'}
                   </button>

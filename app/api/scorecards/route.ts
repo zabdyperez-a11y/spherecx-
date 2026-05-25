@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
@@ -16,8 +17,8 @@ export async function GET() {
       orderBy: { updatedAt: 'desc' },
     })
     return NextResponse.json(scorecards)
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch scorecards' }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
 
@@ -26,18 +27,15 @@ export async function POST(req: Request) {
     const { name, description, sections } = await req.json()
     const scorecard = await prisma.scorecard.create({
       data: {
-        name,
-        description: description || null,
+        name, description: description || null,
         sections: {
           create: sections.map((s: any, si: number) => ({
-            name: s.name,
-            order: si,
+            name: s.name, order: si,
             criteria: {
               create: s.criteria.map((c: any, ci: number) => ({
                 question: c.question,
                 isCritical: c.isCritical || false,
-                weight: 1,
-                order: ci,
+                weight: 1, order: ci,
               })),
             },
           })),
@@ -45,6 +43,18 @@ export async function POST(req: Request) {
       },
       include: { sections: { include: { criteria: true } } },
     })
+
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    await logAudit({
+      userEmail: 'admin@spherecx.com',
+      action: 'CREATE',
+      entity: 'scorecard',
+      entityId: scorecard.id,
+      entityName: scorecard.name,
+      details: { sections: sections.length },
+      ipAddress: ip,
+    })
+
     return NextResponse.json(scorecard, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
