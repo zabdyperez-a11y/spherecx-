@@ -7,20 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  QA_ANALYST
-  TEAM_LEAD
-  AGENT
-}
-
-enum EvalStatus {
-  DRAFT
-  SUBMITTED
-  DISPUTED
-  RESOLVED
-}
-
 model User {
   id            String       @id @default(cuid())
   name          String?
@@ -29,23 +15,23 @@ model User {
   image         String?
   role          Role         @default(AGENT)
   teamId        String?
-  team          Team?        @relation(fields: [teamId], references: [id])
-  accounts      Account[]
-  sessions      Session[]
-  evaluationsBy Evaluation[] @relation("EvaluatorRelation")
-  evaluationsOf Evaluation[] @relation("AgentRelation")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  accounts      Account[]
+  evaluationsOf Evaluation[] @relation("AgentRelation")
+  evaluationsBy Evaluation[] @relation("EvaluatorRelation")
+  sessions      Session[]
+  team          Team?        @relation(fields: [teamId], references: [id])
 }
 
 model Team {
   id          String      @id @default(cuid())
   name        String
   description String?
-  members     User[]
-  scorecards  Scorecard[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  scorecards  Scorecard[]
+  members     User[]
 }
 
 model Scorecard {
@@ -53,12 +39,12 @@ model Scorecard {
   name        String
   description String?
   teamId      String?
-  team        Team?        @relation(fields: [teamId], references: [id])
-  sections    Section[]
-  evaluations Evaluation[]
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  evaluations Evaluation[]
+  team        Team?        @relation(fields: [teamId], references: [id])
+  sections    Section[]
 }
 
 model Section {
@@ -66,9 +52,9 @@ model Section {
   name        String
   weight      Float       @default(1.0)
   scorecardId String
-  scorecard   Scorecard   @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
-  criteria    Criterion[]
   order       Int         @default(0)
+  criteria    Criterion[]
+  scorecard   Scorecard   @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
 }
 
 model Criterion {
@@ -78,19 +64,16 @@ model Criterion {
   weight      Float    @default(1.0)
   isCritical  Boolean  @default(false)
   sectionId   String
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  answers     Answer[]
   order       Int      @default(0)
+  answers     Answer[]
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 }
 
 model Evaluation {
   id           String     @id @default(cuid())
   scorecardId  String
-  scorecard    Scorecard  @relation(fields: [scorecardId], references: [id])
   evaluatorId  String
-  evaluator    User       @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
   agentId      String
-  agent        User       @relation("AgentRelation", fields: [agentId], references: [id])
   callDate     DateTime
   callId       String?
   recordingUrl String?
@@ -98,20 +81,23 @@ model Evaluation {
   totalScore   Float?
   passed       Boolean?
   notes        String?
-  answers      Answer[]
   status       EvalStatus @default(DRAFT)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  answers      Answer[]
+  agent        User       @relation("AgentRelation", fields: [agentId], references: [id])
+  evaluator    User       @relation("EvaluatorRelation", fields: [evaluatorId], references: [id])
+  scorecard    Scorecard  @relation(fields: [scorecardId], references: [id])
 }
 
 model Answer {
   id           String     @id @default(cuid())
   evaluationId String
-  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   criterionId  String
-  criterion    Criterion  @relation(fields: [criterionId], references: [id])
   score        Int
   note         String?
+  criterion    Criterion  @relation(fields: [criterionId], references: [id])
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -120,12 +106,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -146,4 +132,18 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+enum Role {
+  ADMIN
+  QA_ANALYST
+  TEAM_LEAD
+  AGENT
+}
+
+enum EvalStatus {
+  DRAFT
+  SUBMITTED
+  DISPUTED
+  RESOLVED
 }
