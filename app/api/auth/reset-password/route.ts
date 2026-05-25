@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
       }
 
-      const user = await prisma.user.findFirst({
+      const user = await (prisma.user.findFirst as any)({
         where: {
           email: email.toLowerCase(),
           resetToken: token,
