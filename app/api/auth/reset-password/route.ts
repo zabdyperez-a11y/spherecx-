@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
       await prisma.user.update({
         where: { id: user.id },
-        data: { resetToken, resetTokenExpiry: expiry },
+        data: { resetToken, resetTokenExpiry: expiry } as any,
       })
 
       const appUrl = process.env.NEXTAUTH_URL || 'https://spherecx.vercel.app'
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       const hashed = await bcrypt.hash(newPassword, 10)
       await prisma.user.update({
         where: { id: user.id },
-        data: { password: hashed, resetToken: null, resetTokenExpiry: null },
+        data: { password: hashed, resetToken: null, resetTokenExpiry: null } as any,
       })
 
       return NextResponse.json({ success: true })
