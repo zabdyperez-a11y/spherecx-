@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         // Find org admin to notify
         if (agent.orgId) {
           const admins = await prisma.user.findMany({
-            where: { orgId: agent.orgId, role: { in: ['ADMIN', 'MANAGER', 'SUPERVISOR'] } },
+            where: { orgId: agent.orgId, role: { in: ['ADMIN', 'MANAGER', 'SUPERVISOR'] as any } },
           })
 
           for (const admin of admins) {
