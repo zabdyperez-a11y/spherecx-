@@ -24,10 +24,10 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await req.json()
-    const newModule = await prisma.trainingModule.create({
+    const module = await prisma.trainingModule.create({
       data: { ...body, orgId: session.isSuperAdmin ? null : (session.orgId || null) },
     })
-    return NextResponse.json(newModule, { status: 201 })
+    return NextResponse.json(module, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

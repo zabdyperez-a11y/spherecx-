@@ -1,112 +1,134 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 
-const STATS = [
-  { label: 'Evaluations This Month', value: '142', change: '+12%', up: true },
-  { label: 'Average Score', value: '84.3%', change: '+2.1%', up: true },
-  { label: 'Pass Rate', value: '79%', change: '-3%', up: false },
-  { label: 'Agents Evaluated', value: '28', change: '+4', up: true },
-]
+export default function DashboardPage() {
+  const [evals, setEvals] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [role, setRole] = useState('SUPER_ADMIN')
+  const [userName, setUserName] = useState('Admin')
 
-const RECENT = [
-  { agent: 'Maria Lopez', scorecard: 'Inbound Sales', score: 91, passed: true, date: 'May 22' },
-  { agent: 'Carlos Ruiz', scorecard: 'Customer Support T1', score: 74, passed: false, date: 'May 22' },
-  { agent: 'Ana Torres', scorecard: 'Inbound Sales', score: 88, passed: true, date: 'May 21' },
-  { agent: 'Luis Mora', scorecard: 'Escalation Handling', score: 95, passed: true, date: 'May 21' },
-  { agent: 'Sofia Vega', scorecard: 'Customer Support T1', score: 71, passed: false, date: 'May 20' },
-]
+  useEffect(() => {
+    try {
+      const match = document.cookie.split(';').find(c => c.trim().startsWith('spherecx_user='))
+      if (match) {
+        const user = JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')))
+        setRole(user.role || 'SUPER_ADMIN')
+        setUserName(user.name || 'Admin')
+      }
+    } catch {}
+    fetch('/api/evaluations').then(r => r.json())
+      .then(d => { setEvals(Array.isArray(d) ? d : []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
 
-const BARS = [
-  { range: '0–59', pct: 5, color: 'bg-red-400' },
-  { range: '60–69', pct: 8, color: 'bg-orange-400' },
-  { range: '70–79', pct: 18, color: 'bg-yellow-400' },
-  { range: '80–89', pct: 41, color: 'bg-blue-400' },
-  { range: '90–100', pct: 28, color: 'bg-blue-600' },
-]
+  const submitted = evals.filter(e => e.status === 'SUBMITTED')
+  const avgScore = submitted.length > 0 ? Math.round(submitted.reduce((a: number, e: any) => a + (e.totalScore ?? 0), 0) / submitted.length) : null
+  const passRate = submitted.length > 0 ? Math.round((submitted.filter((e: any) => e.passed).length / submitted.length) * 100) : null
+  const disputed = evals.filter((e: any) => e.status === 'DISPUTED').length
+  const isAgent = role === 'AGENT'
 
-export default function Dashboard() {
+  const quickLinks = [
+    { label: 'New Evaluation', href: '/evaluations/new', roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR','QA_ANALYST'] },
+    { label: 'Bulk AI Scoring', href: '/bulk-score', roles: ['SUPER_ADMIN','ADMIN','MANAGER','QA_ANALYST'] },
+    { label: 'HR — Employees', href: '/hr', roles: ['SUPER_ADMIN','ADMIN','MANAGER'] },
+    { label: 'Scheduling', href: '/scheduling', roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR'] },
+    { label: 'Training', href: '/training', roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR','TEAM_LEAD','QA_ANALYST','AGENT'] },
+    { label: 'Operations', href: '/operations', roles: ['SUPER_ADMIN','ADMIN','MANAGER'] },
+    { label: 'Leave Requests', href: '/leave', roles: ['SUPER_ADMIN','ADMIN','MANAGER','SUPERVISOR'] },
+    { label: 'Payroll', href: '/payroll', roles: ['SUPER_ADMIN','ADMIN'] },
+    { label: 'Integrations', href: '/integrations', roles: ['SUPER_ADMIN','ADMIN'] },
+    { label: 'Billing', href: '/admin', roles: ['SUPER_ADMIN'] },
+  ].filter(l => l.roles.includes(role))
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       <Sidebar />
-      <main className="flex-1 px-8 py-7">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+      <main className="app-main flex-1">
+        <div className="page-header">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
-            <p className="text-sm text-slate-400 mt-0.5">May 2026 · QRS Call Center</p>
+            <h1 className="page-title">Welcome back, {userName.split(' ')[0]}</h1>
+            <p className="page-subtitle">{isAgent ? 'Your performance overview' : "Here's what's happening today"}</p>
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            + New Evaluation
-          </button>
+          {!isAgent && (
+            <Link href="/evaluations/new" className="btn-primary">+ New Evaluation</Link>
+          )}
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          {STATS.map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm">
-              <p className="text-xs text-slate-400 mb-2">{s.label}</p>
-              <p className="text-2xl font-semibold text-slate-900">{s.value}</p>
-              <p className={`text-xs mt-1 font-medium ${s.up ? 'text-emerald-500' : 'text-red-400'}`}>
-                {s.change} vs last month
-              </p>
+          {[
+            { label: 'Evaluations', value: submitted.length || '—' },
+            { label: 'Avg Score', value: avgScore != null ? `${avgScore}%` : '—' },
+            { label: 'Pass Rate', value: passRate != null ? `${passRate}%` : '—' },
+            { label: 'Disputed', value: disputed || '—' },
+          ].map(s => (
+            <div key={s.label} className="stat-card">
+              <p className="stat-label">{s.label}</p>
+              <p className="stat-value">{s.value}</p>
             </div>
           ))}
         </div>
 
-        {/* Score distribution */}
-        <div className="bg-white rounded-xl border border-slate-100 px-5 py-4 mb-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-slate-700">Score Distribution</p>
-            <p className="text-xs text-slate-400">142 evaluations</p>
-          </div>
-          <div className="flex items-end gap-2 h-20">
-            {BARS.map((b) => (
-              <div key={b.range} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-xs font-medium text-slate-500">{b.pct}%</span>
-                <div className={`w-full rounded-t-md ${b.color}`} style={{ height: `${b.pct * 2.5}px` }} />
-                <span className="text-xs text-slate-400">{b.range}</span>
+        <div className="grid grid-cols-3 gap-5">
+          <div className="col-span-2 card overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Recent Evaluations</p>
+              <Link href="/evaluations" className="text-xs text-blue-600">View all →</Link>
+            </div>
+            {loading ? (
+              <div className="py-10 text-center text-sm" style={{ color: 'var(--text-3)' }}>Loading...</div>
+            ) : evals.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>No evaluations yet.</p>
+                {!isAgent && <Link href="/evaluations/new" className="btn-primary text-xs">Score your first call</Link>}
               </div>
-            ))}
+            ) : (
+              <table className="w-full">
+                <thead><tr>{['Agent','Scorecard','Score','Result','Date'].map(h => <th key={h} className="table-header">{h}</th>)}</tr></thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--border-2)' }}>
+                  {evals.slice(0, 8).map((e: any) => (
+                    <tr key={e.id} className="table-row">
+                      <td className="table-cell font-medium" style={{ color: 'var(--text-1)' }}>{e.agent?.name || '—'}</td>
+                      <td className="table-cell text-xs" style={{ color: 'var(--text-3)' }}>{e.scorecard?.name}</td>
+                      <td className="table-cell">
+                        {e.totalScore == null ? <span style={{ color: 'var(--text-4)' }}>—</span> : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                              <div className="h-full rounded-full" style={{ width: `${e.totalScore}%`, background: e.totalScore >= 80 ? '#2563eb' : '#ef4444' }} />
+                            </div>
+                            <span className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>{e.totalScore}%</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="table-cell">
+                        {e.passed == null ? <span style={{ color: 'var(--text-4)' }}>—</span>
+                          : <span className={e.passed ? 'badge-green' : 'badge-red'}>{e.passed ? 'Pass' : 'Fail'}</span>}
+                      </td>
+                      <td className="table-cell text-xs" style={{ color: 'var(--text-3)' }}>{new Date(e.callDate).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        </div>
 
-        {/* Recent evaluations */}
-        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">Recent Evaluations</p>
-            <a href="/evaluations" className="text-xs text-blue-600 hover:text-blue-700 font-medium">View all →</a>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-50">
-                {['Agent', 'Scorecard', 'Score', 'Result', 'Date'].map((h) => (
-                  <th key={h} className="text-left text-xs text-slate-400 font-medium px-5 py-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {RECENT.map((r, i) => (
-                <tr key={i} className={`hover:bg-slate-50 transition-colors ${i < RECENT.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                  <td className="px-5 py-3 text-sm font-medium text-slate-900">{r.agent}</td>
-                  <td className="px-5 py-3 text-sm text-slate-500">{r.scorecard}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${r.score >= 80 ? 'bg-blue-500' : r.score >= 70 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                          style={{ width: `${r.score}%` }} />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">{r.score}%</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${r.passed ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                      {r.passed ? 'Pass' : 'Fail'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-slate-400">{r.date}</td>
-                </tr>
+          <div className="card p-5">
+            <p className="section-title mb-4">Quick Access</p>
+            <div className="space-y-1">
+              {quickLinks.slice(0, 8).map(l => (
+                <Link key={l.href} href={l.href}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors group"
+                  style={{ color: 'var(--text-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <span className="text-sm">{l.label}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-4)' }}>→</span>
+                </Link>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </main>
     </div>

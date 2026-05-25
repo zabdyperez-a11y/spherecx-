@@ -8,7 +8,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const where = session.isSuperAdmin ? {} : { orgId: session.orgId || undefined }
-    const requests = await (prisma as any).leaveRequest.findMany({
+    const requests = await prisma.leaveRequest.findMany({
       where,
       include: { employee: true },
       orderBy: { createdAt: 'desc' },
@@ -24,7 +24,7 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { id, status, reviewNote } = await req.json()
-    const request = await (prisma as any).leaveRequest.update({
+    const request = await prisma.leaveRequest.update({
       where: { id },
       data: { status, reviewNote, reviewedBy: session.name || session.email, reviewedAt: new Date() },
       include: { employee: true },

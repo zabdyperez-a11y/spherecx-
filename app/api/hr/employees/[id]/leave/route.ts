@@ -5,7 +5,7 @@ import { getSession } from '@/lib/session'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const requests = await (prisma as any).leaveRequest.findMany({
+    const requests = await prisma.leaveRequest.findMany({
       where: { employeeId: params.id },
       orderBy: { createdAt: 'desc' },
     })
@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const start = new Date(body.startDate)
     const end = new Date(body.endDate)
     const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-    const request = await (prisma as any).leaveRequest.create({
+    const request = await prisma.leaveRequest.create({
       data: {
         employeeId: params.id,
         orgId: session.orgId || null,

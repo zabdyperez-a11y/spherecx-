@@ -13,8 +13,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: {
         acknowledgedAt: new Date(),
         acknowledgedBy: session.name || session.email,
-        status: 'ACKNOWLEDGED' as any,
-      } as any,
+        status: 'ACKNOWLEDGED',
+      },
     })
     await logAudit({
       userEmail: session.email, userName: session.name, userRole: session.role,
