@@ -72,9 +72,9 @@ export default function AgentsPage() {
   const filtered = agents.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="app-main flex-1">
+      <main className="flex-1 px-8 py-7">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Agents</h1>
@@ -250,7 +250,7 @@ export default function AgentsPage() {
               )}
 
               <div className="flex gap-2">
-                <a href={`/evaluations/new?agent=${selected.id}`} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 rounded-lg transition-colors text-center">
+                <a href="/evaluations/new" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 rounded-lg transition-colors text-center">
                   + New Evaluation
                 </a>
               </div>

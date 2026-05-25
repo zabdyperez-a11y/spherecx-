@@ -18,16 +18,19 @@ export async function POST(req: Request) {
         messages: [
           {
             role: 'system',
-            content: 'You are a QA evaluator. Always respond with ONLY a valid JSON array. No markdown, no backticks, no explanation. Just the raw JSON array.',
+            content: 'You are a QA evaluator. Always respond with ONLY a valid JSON array. No markdown, no backticks, no explanation. Just the raw JSON array.'
           },
-          { role: 'user', content: prompt },
+          { role: 'user', content: prompt }
         ],
       }),
     })
 
     const data = await res.json()
     let text = data.choices?.[0]?.message?.content ?? ''
-    text = text.replace(/`{3}json/g, '').replace(/`{3}/g, '').trim()
+    // Strip any markdown wrapping just in case
+    text = text.replace(/```json
+?/g, '').replace(/```
+?/g, '').trim()
     return NextResponse.json({ text })
   } catch (error) {
     return NextResponse.json({ error: 'AI scoring failed' }, { status: 500 })
